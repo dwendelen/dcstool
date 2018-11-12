@@ -9,11 +9,11 @@ data class LaLoSecond
         val latitudeHemisphere: Hemisphere,
         val latitudeDegrees: Int,
         val latitudeMinutes: Int,
-        val latitudeSeconds: Int,
+        val latitudeSeconds: Double,
         val longitudeHemisphere: Hemisphere,
         val longitudeDegrees: Int,
         val longitudeMinutes: Int,
-        val longitudeSeconds: Int
+        val longitudeSeconds: Double
 ) {
     fun print(): String {
         val latChar = latitudeHemisphere.abbreviation
@@ -34,9 +34,9 @@ data class LaLoSecond
     }
 
     fun toLaLoMinute(): LaLoMinute {
-        val latM = latitudeMinutes.toDouble() + (latitudeSeconds.toDouble() / 60.0)
+        val latM = latitudeMinutes.toDouble() + (latitudeSeconds / 60.0)
 
-        val lonM = longitudeMinutes.toDouble() + (longitudeSeconds.toDouble() / 60.0)
+        val lonM = longitudeMinutes.toDouble() + (longitudeSeconds / 60.0)
 
         return LaLoMinute(latitudeHemisphere,latitudeDegrees, latM, longitudeHemisphere, longitudeDegrees, lonM)
     }
@@ -48,14 +48,14 @@ data class LaLoSecond
 
         fun fromLaLoMinute(laLoMinute: LaLoMinute): LaLoSecond {
             val latM = truncate(laLoMinute.latitudeMinutes)
-            val latS = Math.round(60.0 * (laLoMinute.latitudeMinutes - latM))
+            val latS = 60.0 * (laLoMinute.latitudeMinutes - latM)
 
             val lonM = truncate(laLoMinute.longitudeMinutes)
-            val lonS = Math.round(60.0 * (laLoMinute.longitudeMinutes - latM))
+            val lonS = 60.0 * (laLoMinute.longitudeMinutes - latM)
 
             return LaLoSecond(
-                    laLoMinute.latitudeHemisphere, laLoMinute.latitudeDegrees, latM.toInt(), latS.toInt(),
-                    laLoMinute.longitudeHemisphere, laLoMinute.longitudeDegrees, lonM.toInt(), lonS.toInt()
+                    laLoMinute.latitudeHemisphere, laLoMinute.latitudeDegrees, latM.toInt(), latS,
+                    laLoMinute.longitudeHemisphere, laLoMinute.longitudeDegrees, lonM.toInt(), lonS
             )
         }
     }
