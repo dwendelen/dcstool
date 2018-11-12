@@ -7,8 +7,8 @@ class UTMTest {
     @Test
     fun testFromLaLo() {
         val sec = LaLoSecond(
-                Hemisphere.NORTH, 43,38,33,
-                Hemisphere.WEST, 79,23,13
+                Hemisphere.NORTH, 43,38,33.0,
+                Hemisphere.WEST, 79,23,13.0
         )
         val laLoDegree = sec.toLaLoDegree()
         val actual = UTM.fromLaLoDegree(laLoDegree)
