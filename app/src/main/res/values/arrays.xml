@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="formats">
-        <item>La Lo degree</item>
-        <item>La Lo sec</item>
-        <item>La Lo min</item>
+        <item>La Lo degrees</item>
+        <item>La Lo seconds</item>
+        <item>La Lo minutes</item>
         <item>UTM</item>
         <item>MGRS</item>
         <item>AJS-37</item>
