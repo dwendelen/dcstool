@@ -21,7 +21,7 @@ class LaLoMinuteTest {
     @Test
     fun testFromLaLoDegree() {
         val laLoD = LaLoDegree(SOUTH, 0.5, EAST, 11.9915)
-        val actual = LaLoMinute.fromLaLoDegree(laLoD)
+        val actual = LaLoMinuteFactory.fromLaLoDegree(laLoD)
         println(actual.print())
         assertEquals(LaLoMinute(SOUTH, 0, 30.0,EAST, 11,59.49).print(), actual.print())
     }

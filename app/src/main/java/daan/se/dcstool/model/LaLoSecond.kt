@@ -14,8 +14,9 @@ data class LaLoSecond
         val longitudeDegrees: Int,
         val longitudeMinutes: Int,
         val longitudeSeconds: Double
-) {
-    fun print(): String {
+) : Coordinate
+{
+    override fun print(): String {
         val latChar = latitudeHemisphere.abbreviation
         val lonChar = longitudeHemisphere.abbreviation
 
@@ -29,7 +30,7 @@ data class LaLoSecond
         return "$latChar $latDStr\u00b0$latMStr'$latSStr\" $lonChar $lonDStr\u00b0$lonMStr'$lonSStr\""
     }
 
-    fun toLaLoDegree(): LaLoDegree {
+    override fun toLaLoDegree(): LaLoDegree {
         return toLaLoMinute().toLaLoDegree();
     }
 
@@ -40,23 +41,23 @@ data class LaLoSecond
 
         return LaLoMinute(latitudeHemisphere,latitudeDegrees, latM, longitudeHemisphere, longitudeDegrees, lonM)
     }
+}
 
-    companion object {
-        fun fromLaLoDegree(laLoDegree: LaLoDegree): LaLoSecond {
-            return fromLaLoMinute(LaLoMinute.fromLaLoDegree(laLoDegree));
-        }
+object LaLoSecondFactory: CoordinateFactory<LaLoSecond> {
+    override fun fromLaLoDegree(laLoDegree: LaLoDegree): LaLoSecond {
+        return fromLaLoMinute(LaLoMinuteFactory.fromLaLoDegree(laLoDegree));
+    }
 
-        fun fromLaLoMinute(laLoMinute: LaLoMinute): LaLoSecond {
-            val latM = truncate(laLoMinute.latitudeMinutes)
-            val latS = 60.0 * (laLoMinute.latitudeMinutes - latM)
+    fun fromLaLoMinute(laLoMinute: LaLoMinute): LaLoSecond {
+        val latM = truncate(laLoMinute.latitudeMinutes)
+        val latS = 60.0 * (laLoMinute.latitudeMinutes - latM)
 
-            val lonM = truncate(laLoMinute.longitudeMinutes)
-            val lonS = 60.0 * (laLoMinute.longitudeMinutes - latM)
+        val lonM = truncate(laLoMinute.longitudeMinutes)
+        val lonS = 60.0 * (laLoMinute.longitudeMinutes - latM)
 
-            return LaLoSecond(
-                    laLoMinute.latitudeHemisphere, laLoMinute.latitudeDegrees, latM.toInt(), latS,
-                    laLoMinute.longitudeHemisphere, laLoMinute.longitudeDegrees, lonM.toInt(), lonS
-            )
-        }
+        return LaLoSecond(
+                laLoMinute.latitudeHemisphere, laLoMinute.latitudeDegrees, latM.toInt(), latS,
+                laLoMinute.longitudeHemisphere, laLoMinute.longitudeDegrees, lonM.toInt(), lonS
+        )
     }
 }

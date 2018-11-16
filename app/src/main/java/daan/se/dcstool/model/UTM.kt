@@ -10,30 +10,32 @@ import kotlin.math.*
  */
 data class UTM
 (
-        val zone: Int,
         val hemisphere: Hemisphere,
+        val zone: Int,
         private val latitudeBand: LatitudeBand?,
         val easting: Int,
         val northing: Int
-) {
-    fun print(): String {
+): Coordinate
+{
+    override fun print(): String {
         val e = DecimalFormat("000000").format(easting)
         val n = DecimalFormat("0000000").format(northing)
+        val latBand = if (latitudeBand != null) latitudeBand.name else ""
 
-        return "$zone${hemisphere.abbreviation} $e $n"
+        return "${hemisphere.abbreviation} $zone$latBand $e $n"
     }
 
     fun getLatitudeBand(): LatitudeBand {
         if(latitudeBand != null){
             return latitudeBand
         } else {
-            val withLat = fromLaLoDegree(toLaLoDegree())
+            val withLat = UTMFactory.fromLaLoDegree(toLaLoDegree())
 
             return withLat.latitudeBand!!
         }
     }
 
-    fun toLaLoDegree(): LaLoDegree {
+    override fun toLaLoDegree(): LaLoDegree {
         val N0: Double = if (hemisphere == NORTH) 0.0 else 10000000.0
 
         val e = (northing - N0) / (k0 * A)
@@ -61,37 +63,37 @@ data class UTM
 
         return LaLoDegree(hemisphere, lat, lonHemisphere, lon)
     }
+}
 
-    companion object {
-        fun fromLaLoDegree(laLoDegree: LaLoDegree): UTM {
-            val lat = laLoDegree.latitudeDegrees * laLoDegree.latitudeHemisphere.sign
-            val lon = laLoDegree.longitudeDegrees * laLoDegree.longitudeHemisphere.sign
+object UTMFactory: CoordinateFactory<UTM> {
+    override fun fromLaLoDegree(laLoDegree: LaLoDegree): UTM {
+        val lat = laLoDegree.latitudeDegrees * laLoDegree.latitudeHemisphere.sign
+        val lon = laLoDegree.longitudeDegrees * laLoDegree.longitudeHemisphere.sign
 
-            val zone = floor((lon + 180.0) / 6.0).toInt() + 1
-            val latitudeBand = LatitudeBand.getBandForLatitude(lat)
+        val zone = floor((lon + 180.0) / 6.0).toInt() + 1
+        val latitudeBand = LatitudeBand.getBandForLatitude(lat)
 
-            val phi = lat / 180.0 * PI
-            val delta = lon / 180.0 * PI
-            val delta0 = (zone * 6 - 180 - 3) / 180.0 * PI
+        val phi = lat / 180.0 * PI
+        val delta = lon / 180.0 * PI
+        val delta0 = (zone * 6 - 180 - 3) / 180.0 * PI
 
-            val N0: Double = if (laLoDegree.latitudeHemisphere == NORTH) 0.0 else 10000000.0
-            val t = sinh(atanh(sin(phi)) - _2vn_1_n * atanh(_2vn_1_n * sin(phi)))
-            val ee = atan(t / cos(delta - delta0))
-            val nn = atanh(sin(delta - delta0) / sqrt(1 + (t * t)))
+        val N0: Double = if (laLoDegree.latitudeHemisphere == NORTH) 0.0 else 10000000.0
+        val t = sinh(atanh(sin(phi)) - _2vn_1_n * atanh(_2vn_1_n * sin(phi)))
+        val ee = atan(t / cos(delta - delta0))
+        val nn = atanh(sin(delta - delta0) / sqrt(1 + (t * t)))
 
 
-            val sumE = a1 * cos(2 * ee) * sinh(2 * nn) +
-                            a2 * cos(4 * ee) * sinh(4 * nn) +
-                            a3 * cos(6 * ee) * sinh(6 * nn)
-            val E = E0 + k0 * A * (nn + sumE)
+        val sumE = a1 * cos(2 * ee) * sinh(2 * nn) +
+                a2 * cos(4 * ee) * sinh(4 * nn) +
+                a3 * cos(6 * ee) * sinh(6 * nn)
+        val E = E0 + k0 * A * (nn + sumE)
 
-            val sumN = a1 * sin(2 * ee) * cosh(2 * nn) +
-                            a2 * sin(4 * ee) * cosh(4 * nn) +
-                            a3 * sin(6 * ee) * cosh(6 * nn)
-            val N = N0 + k0 * A * (ee + sumN)
+        val sumN = a1 * sin(2 * ee) * cosh(2 * nn) +
+                a2 * sin(4 * ee) * cosh(4 * nn) +
+                a3 * sin(6 * ee) * cosh(6 * nn)
+        val N = N0 + k0 * A * (ee + sumN)
 
-            return UTM(zone, laLoDegree.latitudeHemisphere, latitudeBand, Math.round(E).toInt(), Math.round(N).toInt())
-        }
+        return UTM(laLoDegree.latitudeHemisphere, zone, latitudeBand, Math.round(E).toInt(), Math.round(N).toInt())
     }
 }
 

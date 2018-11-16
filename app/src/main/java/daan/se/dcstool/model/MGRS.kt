@@ -1,5 +1,6 @@
 package daan.se.dcstool.model
 
+import java.lang.UnsupportedOperationException
 import java.text.DecimalFormat
 
 data class MGRS
@@ -10,8 +11,13 @@ data class MGRS
     val rowLetter: RowLetter,
     val easting: Int,
     val northing: Int
-) {
-    fun print(): String {
+) : Coordinate
+{
+    override fun toLaLoDegree(): LaLoDegree {
+        throw UnsupportedOperationException()
+    }
+
+    override fun print(): String {
         val e = DecimalFormat("00000").format(easting)
         val n = DecimalFormat("00000").format(northing)
 
@@ -22,19 +28,23 @@ data class MGRS
         val e = columnLetter.toUTMEastingBase() + easting
         val n = latitudeBand.toUTMNorthingBase() + rowLetter.toUTMNorthingBase(zone) + northing
 
-        return UTM(zone, latitudeBand.getHemisphere(), latitudeBand, e, n)
+        return UTM(latitudeBand.getHemisphere(), zone, latitudeBand, e, n)
+    }
+}
+
+object MGRSFactory: CoordinateFactory<MGRS> {
+    override fun fromLaLoDegree(laLoDegree: LaLoDegree): MGRS {
+        return fromUTM(UTMFactory.fromLaLoDegree(laLoDegree))
     }
 
-    companion object {
-        fun fromUTM(utm: UTM): MGRS {
-            val col = ColumnLetter.fromZoneAndEasting(utm.zone, utm.easting)
-            val row = RowLetter.fromZoneAndNorthing(utm.zone, utm.northing)
+    fun fromUTM(utm: UTM): MGRS {
+        val col = ColumnLetter.fromZoneAndEasting(utm.zone, utm.easting)
+        val row = RowLetter.fromZoneAndNorthing(utm.zone, utm.northing)
 
-            val easting = utm.easting % 100000
-            val northing = utm.northing % 100000
+        val easting = utm.easting % 100000
+        val northing = utm.northing % 100000
 
-            return MGRS(utm.zone, utm.getLatitudeBand(), col, row, easting, northing)
-        }
+        return MGRS(utm.zone, utm.getLatitudeBand(), col, row, easting, northing)
     }
 }
 

@@ -8,8 +8,9 @@ data class LaLoDegree
         val latitudeDegrees: Double,
         val longitudeHemisphere: Hemisphere,
         val longitudeDegrees: Double
-) {
-    fun print(): String {
+) : Coordinate
+{
+    override fun print(): String {
         val latChar = latitudeHemisphere.abbreviation
         val lonChar = longitudeHemisphere.abbreviation
 
@@ -17,5 +18,15 @@ data class LaLoDegree
         val longStr = DecimalFormat("000.0000").format(longitudeDegrees)
 
         return "$latChar $latStr\u00b0 $lonChar $longStr\u00b0"
+    }
+
+    override fun toLaLoDegree(): LaLoDegree {
+        return this
+    }
+}
+
+object LaLoDegreeFactory : CoordinateFactory<LaLoDegree> {
+    override fun fromLaLoDegree(laLoDegree: LaLoDegree): LaLoDegree {
+        return laLoDegree
     }
 }

@@ -11,7 +11,7 @@ class UTMTest {
                 Hemisphere.WEST, 79,23,13.0
         )
         val laLoDegree = sec.toLaLoDegree()
-        val actual = UTM.fromLaLoDegree(laLoDegree)
+        val actual = UTMFactory.fromLaLoDegree(laLoDegree)
 
         assertEquals("17N 630100 4833431", actual.print())
     }
@@ -23,14 +23,14 @@ class UTMTest {
                 Hemisphere.EAST, 41 ,36.730
         )
         val laLoDegree = sec.toLaLoDegree()
-        val actual = UTM.fromLaLoDegree(laLoDegree)
+        val actual = UTMFactory.fromLaLoDegree(laLoDegree)
 
         assertEquals("37N 717672 4609326", actual.print())
     }
 
     @Test
     fun testToLaLo() {
-        val utm = UTM(17, Hemisphere.NORTH, LatitudeBand.T, 630100, 4833431)
+        val utm = UTM(Hemisphere.NORTH, 17, LatitudeBand.T, 630100, 4833431)
         val actual = utm.toLaLoDegree()
 
         assertEquals("N 43.6425° W 079.3869°", actual.print())
@@ -38,7 +38,7 @@ class UTMTest {
 
     @Test
     fun testToLaLo2() {
-        val utm = UTM(37, Hemisphere.NORTH, LatitudeBand.T, 717672, 4609327)
+        val utm = UTM(Hemisphere.NORTH, 37, LatitudeBand.T, 717672, 4609327)
         val actual = utm.toLaLoDegree()
 
         assertEquals("N 41.6060° E 041.6122°", actual.print())
