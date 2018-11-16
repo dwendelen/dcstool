@@ -19,4 +19,20 @@ class MGRSTest {
 
         assertEquals("17T PJ 30100 33431", actual.print())
     }
+
+    @Test
+    fun toUTM1() {
+        val mgrs = MGRS(37, LatitudeBand.T, ColumnLetter.G, RowLetter.G, 17672, 9327)
+        val actual = mgrs.toUTM()
+
+        assertEquals("37N 717672 4609327", actual.print())
+    }
+
+    @Test
+    fun toUTM2() {
+        val mgrs = MGRS(17, LatitudeBand.T, ColumnLetter.P, RowLetter.J, 30100, 33431)
+        val actual = mgrs.toUTM()
+
+        assertEquals("17N 630100 4833431", actual.print())
+    }
 }

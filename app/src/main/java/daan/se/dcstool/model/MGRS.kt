@@ -19,8 +19,8 @@ data class MGRS
     }
 
     fun toUTM(): UTM {
-        val e = ((columnLetter.ordinal % 8) + 1) * 100000
-        val n =0 //TODO
+        val e = columnLetter.toUTMEastingBase() + easting
+        val n = latitudeBand.toUTMNorthingBase() + rowLetter.toUTMNorthingBase(zone) + northing
 
         return UTM(zone, latitudeBand.getHemisphere(), latitudeBand, e, n)
     }
@@ -64,6 +64,10 @@ enum class ColumnLetter {
     Y,
     Z;
 
+    fun toUTMEastingBase(): Int {
+        return ((ordinal % 8) + 1) * 100000
+    }
+
     companion object {
         fun fromZoneAndEasting(zone: Int, easting: Int): ColumnLetter {
             val idx = ((zone - 1) % 3) * 8 + easting / 100000 - 1
@@ -94,6 +98,15 @@ enum class RowLetter {
     T,
     U,
     V;
+
+    fun toUTMNorthingBase(zone: Int): Int {
+        val idx = if(zone % 2 == 1 )
+            ordinal
+        else
+            (ordinal - 5) % RowLetter.values().size
+
+        return idx * 100000
+    }
 
     companion object {
         fun fromZoneAndNorthing(zone: Int, northing: Int): RowLetter {
