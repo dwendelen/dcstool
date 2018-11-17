@@ -31,7 +31,7 @@ class Parser {
                         DigitRange(0, 9).star(setOf(0)) { a, b -> 10 * a + b },
                         maybeSpace,
                         DigitRange(0, 9).star(setOf(0)) { a, b -> 10 * a + b }
-                ) { z, l, _, c, r, _, n, _, e -> MGRS(z, l, c, r, n, e) as Coordinate }
+                ) { z, l, _, c, r, _, n, _, e -> MGRS(z, l, c, r, n.toDouble(), e.toDouble()) as Coordinate }
 
         return mgrs
     }

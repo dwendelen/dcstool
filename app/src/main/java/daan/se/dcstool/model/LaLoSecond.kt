@@ -53,7 +53,7 @@ object LaLoSecondFactory: CoordinateFactory<LaLoSecond> {
         val latS = 60.0 * (laLoMinute.latitudeMinutes - latM)
 
         val lonM = truncate(laLoMinute.longitudeMinutes)
-        val lonS = 60.0 * (laLoMinute.longitudeMinutes - latM)
+        val lonS = 60.0 * (laLoMinute.longitudeMinutes - lonM)
 
         return LaLoSecond(
                 laLoMinute.latitudeHemisphere, laLoMinute.latitudeDegrees, latM.toInt(), latS,

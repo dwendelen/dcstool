@@ -1,6 +1,7 @@
 package daan.se.dcstool.model
 
 import java.lang.UnsupportedOperationException
+import java.math.RoundingMode
 import java.text.DecimalFormat
 
 data class MGRS
@@ -9,17 +10,20 @@ data class MGRS
     val latitudeBand: LatitudeBand,
     val columnLetter: ColumnLetter,
     val rowLetter: RowLetter,
-    val easting: Int,
-    val northing: Int
+    val easting: Double,
+    val northing: Double
 ) : Coordinate
 {
     override fun toLaLoDegree(): LaLoDegree {
-        throw UnsupportedOperationException()
+        return toUTM().toLaLoDegree()
     }
 
     override fun print(): String {
-        val e = DecimalFormat("00000").format(easting)
-        val n = DecimalFormat("00000").format(northing)
+        val decimalFormat = DecimalFormat("00000")
+        decimalFormat.roundingMode = RoundingMode.DOWN
+
+        val e = decimalFormat.format(easting)
+        val n = decimalFormat.format(northing)
 
         return "$zone$latitudeBand ${columnLetter.name}${rowLetter.name} $e $n"
     }
@@ -28,7 +32,7 @@ data class MGRS
         val e = columnLetter.toUTMEastingBase() + easting
         val n = latitudeBand.toUTMNorthingBase() + rowLetter.toUTMNorthingBase(zone) + northing
 
-        return UTM(latitudeBand.getHemisphere(), zone, latitudeBand, e, n)
+        return UTM(latitudeBand.getHemisphere(), zone, latitudeBand, e.toDouble(), n.toDouble())
     }
 }
 
@@ -79,8 +83,8 @@ enum class ColumnLetter {
     }
 
     companion object {
-        fun fromZoneAndEasting(zone: Int, easting: Int): ColumnLetter {
-            val idx = ((zone - 1) % 3) * 8 + easting / 100000 - 1
+        fun fromZoneAndEasting(zone: Int, easting: Double): ColumnLetter {
+            val idx = ((zone - 1) % 3) * 8 + (easting / 100000.0).toInt() - 1
 
             return ColumnLetter.values().get(idx)
         }
@@ -119,9 +123,9 @@ enum class RowLetter {
     }
 
     companion object {
-        fun fromZoneAndNorthing(zone: Int, northing: Int): RowLetter {
+        fun fromZoneAndNorthing(zone: Int, northing: Double): RowLetter {
             val idxOffset = if(zone % 2 == 1) 0 else 5
-            val idx = (idxOffset + northing / 100000) % RowLetter.values().size
+            val idx = (idxOffset + (northing / 100000.0).toInt()) % RowLetter.values().size
 
             return RowLetter.values().get(idx)
         }

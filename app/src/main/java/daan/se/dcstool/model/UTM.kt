@@ -13,10 +13,9 @@ data class UTM
         val hemisphere: Hemisphere,
         val zone: Int,
         private val latitudeBand: LatitudeBand?,
-        val easting: Int,
-        val northing: Int
-): Coordinate
-{
+        val easting: Double,
+        val northing: Double
+) : Coordinate {
     override fun print(): String {
         val e = DecimalFormat("000000").format(easting)
         val n = DecimalFormat("0000000").format(northing)
@@ -26,7 +25,7 @@ data class UTM
     }
 
     fun getLatitudeBand(): LatitudeBand {
-        if(latitudeBand != null){
+        if (latitudeBand != null) {
             return latitudeBand
         } else {
             val withLat = UTMFactory.fromLaLoDegree(toLaLoDegree())
@@ -42,13 +41,13 @@ data class UTM
         val n = (easting - E0) / (k0 * A)
 
         val sumE = b1 * sin(2 * e) * cosh(2 * n) +
-                        b2 * sin(4 * e) * cosh(4 * n) +
-                        b3 * sin(6 * e) * cosh(6 * n)
+                b2 * sin(4 * e) * cosh(4 * n) +
+                b3 * sin(6 * e) * cosh(6 * n)
         val ee = e - sumE
 
         val sumN = b1 * cos(2 * e) * sinh(2 * n) +
-                        b2 * cos(4 * e) * sinh(4 * n) +
-                        b3 * cos(6 * e) * sinh(6 * n)
+                b2 * cos(4 * e) * sinh(4 * n) +
+                b3 * cos(6 * e) * sinh(6 * n)
         val nn = n - sumN
 
         val X = asin(sin(ee) / cosh(nn))
@@ -57,15 +56,15 @@ data class UTM
         val delta0 = (zone * 6 - 180 - 3) / 180.0 * PI
         val delta = delta0 + atan(sinh(nn) / cos(ee))
 
-        val lonHemisphere = if(delta < 0) WEST else EAST
-        val lat = abs(phi *180 / PI)
+        val lonHemisphere = if (delta < 0) WEST else EAST
+        val lat = abs(phi * 180 / PI)
         val lon = lonHemisphere.sign * delta * 180 / PI
 
         return LaLoDegree(hemisphere, lat, lonHemisphere, lon)
     }
 }
 
-object UTMFactory: CoordinateFactory<UTM> {
+object UTMFactory : CoordinateFactory<UTM> {
     override fun fromLaLoDegree(laLoDegree: LaLoDegree): UTM {
         val lat = laLoDegree.latitudeDegrees * laLoDegree.latitudeHemisphere.sign
         val lon = laLoDegree.longitudeDegrees * laLoDegree.longitudeHemisphere.sign
@@ -93,7 +92,7 @@ object UTMFactory: CoordinateFactory<UTM> {
                 a3 * sin(6 * ee) * cosh(6 * nn)
         val N = N0 + k0 * A * (ee + sumN)
 
-        return UTM(laLoDegree.latitudeHemisphere, zone, latitudeBand, Math.round(E).toInt(), Math.round(N).toInt())
+        return UTM(laLoDegree.latitudeHemisphere, zone, latitudeBand, E, N)
     }
 }
 
