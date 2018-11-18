@@ -5,18 +5,19 @@ import daan.se.dcstool.model.*
 
 class Parser {
     val composeNumber = { a: Int, b: Int -> 10 * a + b }
+    val composeNumber3 = { a: Int, b: Int, c: Int -> 100 * a + 10 * b + c }
 
     fun parseChars(input: CharSequence): Set<Coordinate> {
         val state = getCoordinateParser().getParseState()
         var lastResult = ParseResult(emptySet<Coordinate>(), false)
 
         input.forEach {
-            if(lastResult.done) {
+            if (lastResult.done) {
                 return emptySet()
             }
 
-            if(!state.getAcceptedChars().contains(it)) {
-               return emptySet()
+            if (!state.getAcceptedChars().contains(it)) {
+                return emptySet()
             }
 
             lastResult = state.onChar(it)
@@ -26,18 +27,134 @@ class Parser {
     }
 
     fun getCoordinateParser(): Thing<Coordinate> {
-        val N = CharThing('N') { Hemisphere.NORTH }
-        val S = CharThing('S') { Hemisphere.SOUTH }
+        val N = CharThing('N', Hemisphere.NORTH)
+        val S = CharThing('S', Hemisphere.SOUTH)
+        val E = CharThing('E', Hemisphere.EAST)
+        val W = CharThing('W', Hemisphere.WEST)
+        val ns = N.or(S)
+        val ew = E.or(W)
+
+        val degree = CharThing('°', null)
+        val minute = CharThing('\'', null)
+        val second = CharThing('"', null)
 
         val space = CharThing(' ', null)
-        val maybeSpace = MaybeThing(space, setOf(null))
+        val maybeSpace = MaybeThing(space, null)
 
-        val _60 = Digit(6).concat(Digit(0), composeNumber)
+        val int0_9 = DigitRange(0, 9)
+        val int0_59 =
+                int0_9.or(DigitRange(0, 5).concat(int0_9, composeNumber))
+        val int0_179 =
+                OrThing(setOf(
+                        concatThing3(Digit(0), int0_9, int0_9, composeNumber3),
+                        concatThing3(Digit(1), DigitRange(0, 7), int0_9, composeNumber3),
+                        int0_9.concat(int0_9, composeNumber),
+                        int0_9
+                ))
+
+        val integer = int0_9.star(0, composeNumber)
+
+        fun toDecimal(int: Thing<Int>): Thing<Double> {
+            val afterComma =
+                    CharThing('.', null)
+                            .concat(DigitRangeAsString(0, 9).star("0.") { a, b -> a + b }) { _, a ->
+                                a.toDouble()
+                            }
+            //return int.concat(MaybeThing(afterComma, 0.0)) { a, b -> a + b } TODO see why this does not work
+            return int.map(Int::toDouble).or(int.concat(afterComma) { a, b -> a + b })
+        }
+
+        data class LaLoDegPart(val h: Hemisphere, val d: Double)
+
+        fun laLoDegPart(hemi: Thing<Hemisphere>, degreeRange: Thing<Int>): Thing<LaLoDegPart> {
+            return concatThing4(
+                    hemi,
+                    maybeSpace,
+                    toDecimal(degreeRange),
+                    MaybeThing(degree, null)
+            ) { h, _, d, _ ->
+                LaLoDegPart(h, d)
+            }
+        }
+
+        val laLoDegree = concatThing3(
+                laLoDegPart(ns, int0_59),
+                maybeSpace,
+                laLoDegPart(ew, int0_179)
+        ) { lat, _, lon ->
+            LaLoDegree(lat.h, lat.d, lon.h, lon.d) as Coordinate
+        }
+
+
+        data class LaLoMinPart(val h: Hemisphere, val d: Int, val m: Double)
+
+        fun laLoMinPart(hemi: Thing<Hemisphere>, degreeRange: Thing<Int>): Thing<LaLoMinPart> {
+            return concatThing6(
+                    hemi,
+                    maybeSpace,
+                    degreeRange,
+                    degree.or(space),
+                    toDecimal(int0_59),
+                    MaybeThing(minute, null)
+            ) { h, _, d, _, m, _ ->
+                LaLoMinPart(h, d, m)
+            }
+        }
+
+        val laLoMinute = concatThing3(
+                laLoMinPart(ns, int0_59),
+                maybeSpace,
+                laLoMinPart(ew, int0_179)
+        ) { lat, _, lon ->
+            LaLoMinute(lat.h, lat.d, lat.m, lon.h, lon.d, lon.m) as Coordinate
+        }
+
+
+        data class LaLoSecPart(val h: Hemisphere, val d: Int, val m: Int, val s: Int)
+
+        fun laLoSecPart(hemi: Thing<Hemisphere>, degreeRange: Thing<Int>): Thing<LaLoSecPart> {
+            return concatThing8(
+                    hemi,
+                    maybeSpace,
+                    degreeRange,
+                    degree.or(space),
+                    int0_59,
+                    minute.or(space),
+                    int0_59,
+                    MaybeThing(second, null)
+            ) { h, _, d, _, m, _, s, _ ->
+                LaLoSecPart(h, d, m, s)
+            }
+        }
+
+        val laLoSecond = concatThing3(
+                laLoSecPart(ns, int0_59),
+                maybeSpace,
+                laLoSecPart(ew, int0_179)
+        ) { lat, _, lon ->
+            LaLoSecond(lat.h, lat.d, lat.m, lat.s.toDouble(), lon.h, lon.d, lon.m, lon.s.toDouble()) as Coordinate
+        }
+
 
         val zone =
                 DigitRange(1, 9)
-                        .or(DigitRange(1, 5).concat(DigitRange(0, 9), composeNumber))
-                        .or(_60)
+                        .or(DigitRange(1, 5).concat(int0_9, composeNumber))
+                        .or(Digit(6).concat(Digit(0), composeNumber))
+
+        val utm =
+                concatThing8(
+                        ns,
+                        maybeSpace,
+                        zone,
+                        MaybeThing(EnumValues(LatitudeBand.values()) as Thing<LatitudeBand?>, null as LatitudeBand?),
+                        maybeSpace,
+                        integer,
+                        space,
+                        integer
+                ) { h, _, z, l, _, e, _, n ->
+                    UTM(h, z, l, e.toDouble(), n.toDouble()) as Coordinate
+                }
+
 
         val mgrs =
                 concatThing9(
@@ -47,12 +164,129 @@ class Parser {
                         EnumValues(ColumnLetter.values()),
                         EnumValues(RowLetter.values()),
                         maybeSpace,
-                        DigitRange(0, 9).star(setOf(0), composeNumber),
-                        maybeSpace,
-                        DigitRange(0, 9).star(setOf(0), composeNumber)
+                        integer,
+                        space,
+                        integer
                 ) { z, l, _, c, r, _, n, _, e -> MGRS(z, l, c, r, n.toDouble() + 0.5, e.toDouble() + 0.5) as Coordinate }
 
-        return mgrs.optimise()
+        val result = OrThing(setOf(
+                laLoDegree,
+                laLoMinute,
+                laLoSecond,
+                utm,
+                mgrs
+        ))
+
+        return result.optimise()
+    }
+
+
+    fun <A, B, C, R> concatThing3(
+            a: Thing<A>,
+            b: Thing<B>,
+            c: Thing<C>,
+            fn: (A, B, C) -> R
+    ): Thing<R> {
+
+        val things =
+                ConcatThingListTerminator(c)
+                        .prepend(b)
+                        .prepend(a)
+
+        return ConcatThing(things) {
+            val aa = it.item
+            val bb = it.tail.item
+            val cc = it.tail.tail.item
+
+            fn(aa, bb, cc)
+        }
+    }
+
+    fun <A, B, C, D, E, F, R> concatThing6(
+            a: Thing<A>,
+            b: Thing<B>,
+            c: Thing<C>,
+            d: Thing<D>,
+            e: Thing<E>,
+            f: Thing<F>,
+            fn: (A, B, C, D, E, F) -> R
+    ): Thing<R> {
+
+        val things = ConcatThingListTerminator(f)
+                .prepend(e)
+                .prepend(d)
+                .prepend(c)
+                .prepend(b)
+                .prepend(a)
+
+        return ConcatThing(things) {
+            val aa = it.item
+            val bb = it.tail.item
+            val cc = it.tail.tail.item
+            val dd = it.tail.tail.tail.item
+            val ee = it.tail.tail.tail.tail.item
+            val ff = it.tail.tail.tail.tail.tail.item
+
+            fn(aa, bb, cc, dd, ee, ff)
+        }
+    }
+
+    fun <A, B, C, D, R> concatThing4(
+            a: Thing<A>,
+            b: Thing<B>,
+            c: Thing<C>,
+            d: Thing<D>,
+            fn: (A, B, C, D) -> R
+    ): Thing<R> {
+
+        val things = ConcatThingListTerminator(d)
+                .prepend(c)
+                .prepend(b)
+                .prepend(a)
+
+        return ConcatThing(things) {
+            val aa = it.item
+            val bb = it.tail.item
+            val cc = it.tail.tail.item
+            val dd = it.tail.tail.tail.item
+
+            fn(aa, bb, cc, dd)
+        }
+    }
+
+    fun <A, B, C, D, E, F, G, H, R> concatThing8(
+            a: Thing<A>,
+            b: Thing<B>,
+            c: Thing<C>,
+            d: Thing<D>,
+            e: Thing<E>,
+            f: Thing<F>,
+            g: Thing<G>,
+            h: Thing<H>,
+            fn: (A, B, C, D, E, F, G, H) -> R
+    ): Thing<R> {
+
+        val things = ConcatThingListTerminator(h)
+                .prepend(g)
+                .prepend(f)
+                .prepend(e)
+                .prepend(d)
+                .prepend(c)
+                .prepend(b)
+                .prepend(a)
+
+        return ConcatThing(things) {
+            val aa = it.item
+            val bb = it.tail.item
+            val cc = it.tail.tail.item
+            val dd = it.tail.tail.tail.item
+            val ee = it.tail.tail.tail.tail.item
+            val ff = it.tail.tail.tail.tail.tail.item
+            val gg = it.tail.tail.tail.tail.tail.tail.item
+            val hh = it.tail.tail.tail.tail.tail.tail.tail.item
+
+            fn(aa, bb, cc, dd, ee, ff, gg, hh)
+        }
     }
 
     fun <A, B, C, D, E, F, G, H, I, R> concatThing9(
@@ -91,9 +325,8 @@ class Parser {
 
             fn(aa, bb, cc, dd, ee, ff, gg, hh, ii)
         }
-
-
     }
+
 
     fun Digit(digit: Int): Thing<Int> {
         return CharThing(digit.toString()[0], digit)
@@ -108,8 +341,23 @@ class Parser {
                 }
     }
 
+    fun DigitAsString(digit: Int): Thing<String> {
+        val asString = digit.toString()
+
+        return CharThing(asString[0], asString)
+    }
+
+    fun DigitRangeAsString(from: Int, to: Int): Thing<String> {
+        val initial = DigitAsString(from)
+
+        return (from + 1..to)
+                .fold(initial) { acc, d ->
+                    acc.or(DigitAsString(d))
+                }
+    }
+
     fun <E : Enum<E>> EnumValue(enumValue: E): Thing<E> {
-        return CharThing(enumValue.name[0], enumValue )
+        return CharThing(enumValue.name[0], enumValue)
     }
 
     fun <E : Enum<E>> EnumValues(enumValues: Array<E>): Thing<E> {
@@ -143,8 +391,12 @@ sealed class Thing<T> {
         return acc
     }
 
-    fun star(initial: Set<T>, f: (T, T) -> T): Thing<T> {
+    fun star(initial: T, f: (T, T) -> T): Thing<T> {
         return StarThing(this, initial, f)
+    }
+
+    fun <O> map(f: (T) -> O): Thing<O> {
+        return MapThing(this, f)
     }
 
     abstract fun getParseState(): ParseState<T>
@@ -195,7 +447,7 @@ data class CharThing<T>(
 
 data class MaybeThing<E>(
         val element: Thing<E>,
-        val initial: Set<E>
+        val initial: E
 ) : Thing<E>() {
     override fun getParseState(): ParseState<E> {
         return object : ParseState<E> {
@@ -216,11 +468,39 @@ data class MaybeThing<E>(
     }
 
     override fun getInitialValue(): Set<E>? {
-        return initial
+        return setOf(initial)
     }
 
     override fun optimise(): Thing<E> {
         return MaybeThing(element.optimise(), initial)
+    }
+}
+
+data class MapThing<O, T>(
+        val thing: Thing<O>,
+        val fn: (O) -> T
+) : Thing<T>() {
+    override fun getParseState(): ParseState<T> {
+        return object : ParseState<T> {
+            val state = thing.getParseState()
+
+            override fun getAcceptedChars(): Set<Char> {
+                return state.getAcceptedChars()
+            }
+
+            override fun onChar(char: Char): ParseResult<T> {
+                return state.onChar(char)
+                        .map(fn)
+            }
+
+            override fun canSkip(): Boolean {
+                return state.canSkip()
+            }
+        }
+    }
+
+    override fun optimise(): Thing<T> {
+        return MapThing(thing.optimise(), fn)
     }
 }
 
@@ -254,8 +534,8 @@ data class OrThing<T>(
     override fun optimise(): Thing<T> {
         val optimisedThings = things.map { it.optimise() }
 
-        val newThings = optimisedThings.fold(emptySet()) { newThings:Set<Thing<T>>, thing: Thing<T> ->
-            when(thing) {
+        val newThings = optimisedThings.fold(emptySet()) { newThings: Set<Thing<T>>, thing: Thing<T> ->
+            when (thing) {
                 is OrThing -> newThings + thing.things
                 else -> newThings + thing
             }
@@ -454,13 +734,13 @@ fun <A, B> cross(first: Set<A>, second: Set<B>): List<Pair<A, B>> {
 
 data class StarThing<T>(
         val element: Thing<T>,
-        val initial: Set<T>,
+        val initial: T,
         val f: (T, T) -> T
 ) : Thing<T>() {
     override fun getParseState(): ParseState<T> {
         return object : ParseState<T> {
             var state = element.getParseState()
-            var result = initial
+            var result = setOf(initial)
 
             override fun getAcceptedChars(): Set<Char> {
                 return state.getAcceptedChars()
@@ -486,7 +766,7 @@ data class StarThing<T>(
     }
 
     override fun getInitialValue(): Set<T>? {
-        return initial
+        return setOf(initial)
     }
 
     override fun optimise(): Thing<T> {
