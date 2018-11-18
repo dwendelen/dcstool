@@ -4,20 +4,20 @@ import daan.se.dcstool.model.*
 
 
 class Parser {
+    val composeNumber = { a: Int, b: Int -> 10 * a + b }
+
     fun getCoordinateParser(): Thing<Coordinate> {
         val N = CharThing('N') { Hemisphere.NORTH }
         val S = CharThing('S') { Hemisphere.SOUTH }
 
-        val space = CharThing(' ') { null }
+        val space = CharThing(' ', null)
         val maybeSpace = MaybeThing(space, setOf(null))
 
-        val _60 = Digit(6).concat(Digit(0)) { a, b -> 10 * a + b }
-        val _6 = Digit(6)
+        val _60 = Digit(6).concat(Digit(0), composeNumber)
 
         val zone =
                 DigitRange(1, 9)
-                        .or(DigitRange(1, 5).concat(DigitRange(0, 9)) { a, b -> 10 * a + b })
-                        .or(_6)
+                        .or(DigitRange(1, 5).concat(DigitRange(0, 9), composeNumber))
                         .or(_60)
 
         val mgrs =
@@ -28,12 +28,12 @@ class Parser {
                         EnumValues(ColumnLetter.values()),
                         EnumValues(RowLetter.values()),
                         maybeSpace,
-                        DigitRange(0, 9).star(setOf(0)) { a, b -> 10 * a + b },
+                        DigitRange(0, 9).star(setOf(0), composeNumber),
                         maybeSpace,
-                        DigitRange(0, 9).star(setOf(0)) { a, b -> 10 * a + b }
+                        DigitRange(0, 9).star(setOf(0), composeNumber)
                 ) { z, l, _, c, r, _, n, _, e -> MGRS(z, l, c, r, n.toDouble(), e.toDouble()) as Coordinate }
 
-        return mgrs
+        return mgrs.optimise()
     }
 
     fun <A, B, C, D, E, F, G, H, I, R> concatThing9(
@@ -77,7 +77,7 @@ class Parser {
     }
 
     fun Digit(digit: Int): Thing<Int> {
-        return CharThing(digit.toString()[0], { digit })
+        return CharThing(digit.toString()[0], digit)
     }
 
     fun DigitRange(from: Int, to: Int): Thing<Int> {
@@ -90,7 +90,7 @@ class Parser {
     }
 
     fun <E : Enum<E>> EnumValue(enumValue: E): Thing<E> {
-        return CharThing(enumValue.name[0], { enumValue })
+        return CharThing(enumValue.name[0], enumValue )
     }
 
     fun <E : Enum<E>> EnumValues(enumValues: Array<E>): Thing<E> {
@@ -105,7 +105,7 @@ class Parser {
 
 sealed class Thing<T> {
     fun or(other: Thing<T>): Thing<T> {
-        return OrThing(listOf(this, other))
+        return OrThing(setOf(this, other))
     }
 
     fun <O, R> concat(second: Thing<O>, f: (T, O) -> R): Thing<R> {
@@ -133,6 +133,8 @@ sealed class Thing<T> {
     open fun getInitialValue(): Set<T>? {
         return null
     }
+
+    abstract fun optimise(): Thing<T>
 }
 
 interface ParseState<T> {
@@ -148,23 +150,27 @@ data class ParseResult<out T>(val result: Set<T>, val done: Boolean) {
 }
 
 data class CharThing<T>(
-        val char_: Char,
-        val f: () -> T
+        val char: Char,
+        val result: T
 ) : Thing<T>() {
     override fun getParseState(): ParseState<T> {
         return object : ParseState<T> {
             override fun getAcceptedChars(): Set<Char> {
-                return setOf(char_)
+                return setOf(char)
             }
 
             override fun onChar(char: Char): ParseResult<T> {
-                return ParseResult(setOf(f()), true)
+                return ParseResult(setOf(result), true)
             }
 
             override fun canSkip(): Boolean {
                 return false
             }
         }
+    }
+
+    override fun optimise(): Thing<T> {
+        return this
     }
 }
 
@@ -193,10 +199,14 @@ data class MaybeThing<E>(
     override fun getInitialValue(): Set<E>? {
         return initial
     }
+
+    override fun optimise(): Thing<E> {
+        return MaybeThing(element.optimise(), initial)
+    }
 }
 
 data class OrThing<T>(
-        val things: List<Thing<T>>
+        val things: Set<Thing<T>>
 ) : Thing<T>() {
     override fun getParseState(): ParseState<T> {
         return object : ParseState<T> {
@@ -220,6 +230,19 @@ data class OrThing<T>(
                 return states.any { it.canSkip() }
             }
         }
+    }
+
+    override fun optimise(): Thing<T> {
+        val optimisedThings = things.map { it.optimise() }
+
+        val newThings = optimisedThings.fold(emptySet()) { newThings:Set<Thing<T>>, thing: Thing<T> ->
+            when(thing) {
+                is OrThing -> newThings + thing.things
+                else -> newThings + thing
+            }
+        }
+
+        return OrThing(newThings)
     }
 }
 
@@ -274,10 +297,15 @@ data class ConcatThing<R, RL : ResultList>(
             }
         }
     }
+
+    override fun optimise(): Thing<R> {
+        return ConcatThing(things.optimise(), fn)
+    }
 }
 
 sealed class ConcatThingList<RL : ResultList> {
     abstract fun createList(): ConcatList<RL>
+    abstract fun optimise(): ConcatThingList<RL>
 
     fun <O> prepend(other: Thing<O>): ConcatThingNode<O, RL> {
         return ConcatThingNode(other, this)
@@ -287,6 +315,10 @@ sealed class ConcatThingList<RL : ResultList> {
 data class ConcatThingListTerminator<R>(val thing: Thing<R>) : ConcatThingList<ResultTerminal<R>>() {
     override fun createList(): ConcatListTerminator<R> {
         return ConcatListTerminator(thing.getParseState())
+    }
+
+    override fun optimise(): ConcatThingList<ResultTerminal<R>> {
+        return ConcatThingListTerminator(thing.optimise())
     }
 }
 
@@ -304,6 +336,10 @@ data class ConcatThingNode<E, RL : ResultList>(
                     emptySet()
 
         return ConcatListNode(thing.getParseState(), initialLastValue, false, tail.createList())
+    }
+
+    override fun optimise(): ConcatThingList<ResultNode<E, RL>> {
+        return ConcatThingNode(thing.optimise(), tail.optimise())
     }
 }
 
@@ -432,5 +468,9 @@ data class StarThing<T>(
 
     override fun getInitialValue(): Set<T>? {
         return initial
+    }
+
+    override fun optimise(): Thing<T> {
+        return StarThing(element.optimise(), initial, f)
     }
 }
