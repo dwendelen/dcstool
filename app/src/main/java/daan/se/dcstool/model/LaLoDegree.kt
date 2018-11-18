@@ -1,6 +1,7 @@
 package daan.se.dcstool.model
 
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 
 data class LaLoDegree
 (
@@ -14,8 +15,11 @@ data class LaLoDegree
         val latChar = latitudeHemisphere.abbreviation
         val lonChar = longitudeHemisphere.abbreviation
 
-        val latStr = DecimalFormat("00.0000").format(latitudeDegrees)
-        val longStr = DecimalFormat("000.0000").format(longitudeDegrees)
+        val symbols = DecimalFormatSymbols()
+        symbols.decimalSeparator = '.'
+
+        val latStr = DecimalFormat("00.0000", symbols).format(latitudeDegrees)
+        val longStr = DecimalFormat("000.0000", symbols).format(longitudeDegrees)
 
         return "$latChar $latStr\u00b0 $lonChar $longStr\u00b0"
     }

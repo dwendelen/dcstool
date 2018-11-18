@@ -1,6 +1,7 @@
 package daan.se.dcstool.model
 
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import kotlin.math.abs
 import kotlin.math.truncate
 
@@ -20,12 +21,15 @@ data class LaLoSecond
         val latChar = latitudeHemisphere.abbreviation
         val lonChar = longitudeHemisphere.abbreviation
 
-        val latDStr = DecimalFormat("00").format(abs(latitudeDegrees))
-        val latMStr = DecimalFormat("00").format(abs(latitudeMinutes))
-        val latSStr = DecimalFormat("00").format(abs(latitudeSeconds))
-        val lonDStr = DecimalFormat("000").format(abs(longitudeDegrees))
-        val lonMStr = DecimalFormat("00").format(abs(longitudeMinutes))
-        val lonSStr = DecimalFormat("00").format(abs(longitudeSeconds))
+        val symbols = DecimalFormatSymbols()
+        symbols.decimalSeparator = '.'
+
+        val latDStr = DecimalFormat("00", symbols).format(abs(latitudeDegrees))
+        val latMStr = DecimalFormat("00", symbols).format(abs(latitudeMinutes))
+        val latSStr = DecimalFormat("00", symbols).format(abs(latitudeSeconds))
+        val lonDStr = DecimalFormat("000", symbols).format(abs(longitudeDegrees))
+        val lonMStr = DecimalFormat("00", symbols).format(abs(longitudeMinutes))
+        val lonSStr = DecimalFormat("00", symbols).format(abs(longitudeSeconds))
 
         return "$latChar $latDStr\u00b0$latMStr'$latSStr\" $lonChar $lonDStr\u00b0$lonMStr'$lonSStr\""
     }

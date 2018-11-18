@@ -2,6 +2,7 @@ package daan.se.dcstool.model
 
 import daan.se.dcstool.model.Hemisphere.*
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import kotlin.math.*
 
 /*
@@ -17,8 +18,11 @@ data class UTM
         val northing: Double
 ) : Coordinate {
     override fun print(): String {
-        val e = DecimalFormat("000000").format(easting)
-        val n = DecimalFormat("0000000").format(northing)
+        val symbols = DecimalFormatSymbols()
+        symbols.decimalSeparator = '.'
+
+        val e = DecimalFormat("000000", symbols).format(easting)
+        val n = DecimalFormat("0000000", symbols).format(northing)
         val latBand = if (latitudeBand != null) latitudeBand.name else ""
 
         return "${hemisphere.abbreviation} $zone$latBand $e $n"

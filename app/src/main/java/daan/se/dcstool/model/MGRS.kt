@@ -1,8 +1,8 @@
 package daan.se.dcstool.model
 
-import java.lang.UnsupportedOperationException
 import java.math.RoundingMode
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 
 data class MGRS
 (
@@ -19,7 +19,10 @@ data class MGRS
     }
 
     override fun print(): String {
-        val decimalFormat = DecimalFormat("00000")
+        val symbols = DecimalFormatSymbols()
+        symbols.decimalSeparator = '.'
+
+        val decimalFormat = DecimalFormat("00000", symbols)
         decimalFormat.roundingMode = RoundingMode.DOWN
 
         val e = decimalFormat.format(easting)
