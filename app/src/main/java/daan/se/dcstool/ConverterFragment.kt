@@ -13,7 +13,7 @@ import io.reactivex.disposables.Disposable
 import java.util.*
 
 class ConverterFragment : Fragment() {
-    private lateinit var subscriptions: Set<Disposable>
+    private var subscriptions: List<Disposable> = emptyList()
     private val parser = Parser()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
@@ -27,7 +27,7 @@ class ConverterFragment : Fragment() {
 
         val parsed = RxTextView.textChanges(input)
                 .map { parse(it) }
-                .share()
+                .publish()
 
         val laLoMin = parsed
                 .map { mapDegree(LaLoMinuteFactory, it) }
@@ -41,7 +41,9 @@ class ConverterFragment : Fragment() {
                 .map { mapDegree(MGRSFactory, it) }
                 .subscribe(output3::setText)
 
-        subscriptions = setOf(laLoMin, laLoSec, mgrs)
+        val parsedListener = parsed.connect()
+
+        subscriptions = listOf(laLoMin, laLoSec, mgrs, parsedListener)
 
         return view
     }
@@ -70,5 +72,6 @@ class ConverterFragment : Fragment() {
         super.onDestroyView()
 
         subscriptions.forEach(Disposable::dispose)
+        subscriptions = emptyList()
     }
 }
