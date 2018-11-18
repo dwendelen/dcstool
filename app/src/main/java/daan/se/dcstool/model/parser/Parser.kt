@@ -6,6 +6,25 @@ import daan.se.dcstool.model.*
 class Parser {
     val composeNumber = { a: Int, b: Int -> 10 * a + b }
 
+    fun parseString(input: String): Set<Coordinate> {
+        val state = getCoordinateParser().getParseState()
+        var lastResult = ParseResult(emptySet<Coordinate>(), false)
+
+        input.forEach {
+            if(lastResult.done) {
+                return emptySet()
+            }
+
+            if(!state.getAcceptedChars().contains(it)) {
+               return emptySet()
+            }
+
+            lastResult = state.onChar(it)
+        }
+
+        return lastResult.result
+    }
+
     fun getCoordinateParser(): Thing<Coordinate> {
         val N = CharThing('N') { Hemisphere.NORTH }
         val S = CharThing('S') { Hemisphere.SOUTH }

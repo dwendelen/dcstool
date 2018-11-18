@@ -103,6 +103,12 @@ class IntegrationTest {
         }
 
         assertTrue(lastResult.result.size == 1)
-        assertEquals(fromFactory.print(), lastResult.result.iterator().next().print())
+        assertEquals(printed, lastResult.result.iterator().next().print())
+
+
+
+        val fullyParsedByParser = Parser().parseString(printed)
+        assertTrue(fullyParsedByParser.size == 1)
+        assertEquals(printed, fullyParsedByParser.iterator().next().print())
     }
 }
