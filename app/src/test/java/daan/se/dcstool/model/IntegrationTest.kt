@@ -107,7 +107,7 @@ class IntegrationTest {
 
 
 
-        val fullyParsedByParser = Parser().parseString(printed)
+        val fullyParsedByParser = Parser().parseChars(printed)
         assertTrue(fullyParsedByParser.size == 1)
         assertEquals(printed, fullyParsedByParser.iterator().next().print())
     }

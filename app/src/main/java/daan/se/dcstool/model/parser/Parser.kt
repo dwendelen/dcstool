@@ -6,7 +6,7 @@ import daan.se.dcstool.model.*
 class Parser {
     val composeNumber = { a: Int, b: Int -> 10 * a + b }
 
-    fun parseString(input: String): Set<Coordinate> {
+    fun parseChars(input: CharSequence): Set<Coordinate> {
         val state = getCoordinateParser().getParseState()
         var lastResult = ParseResult(emptySet<Coordinate>(), false)
 
@@ -50,7 +50,7 @@ class Parser {
                         DigitRange(0, 9).star(setOf(0), composeNumber),
                         maybeSpace,
                         DigitRange(0, 9).star(setOf(0), composeNumber)
-                ) { z, l, _, c, r, _, n, _, e -> MGRS(z, l, c, r, n.toDouble(), e.toDouble()) as Coordinate }
+                ) { z, l, _, c, r, _, n, _, e -> MGRS(z, l, c, r, n.toDouble() + 0.5, e.toDouble() + 0.5) as Coordinate }
 
         return mgrs.optimise()
     }
