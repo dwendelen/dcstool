@@ -11,16 +11,19 @@ class Parser {
         val state = getCoordinateParser().getParseState()
         var lastResult = ParseResult(emptySet<Coordinate>(), false)
 
+        println(state.getAcceptedChars()) //TODO REMOVE
         input.forEach {
             if (lastResult.done) {
                 return emptySet()
             }
 
+            println(it) //TODO REMOVE
             if (!state.getAcceptedChars().contains(it)) {
                 return emptySet()
             }
 
             lastResult = state.onChar(it)
+            println(state.getAcceptedChars()) //TODO REMOVE
         }
 
         return lastResult.result
@@ -60,8 +63,7 @@ class Parser {
                             .concat(DigitRangeAsString(0, 9).star("0.") { a, b -> a + b }) { _, a ->
                                 a.toDouble()
                             }
-            //return int.concat(MaybeThing(afterComma, 0.0)) { a, b -> a + b } TODO see why this does not work
-            return int.map(Int::toDouble).or(int.concat(afterComma) { a, b -> a + b })
+            return int.concat(MaybeThing(afterComma, 0.0)) { a, b -> a + b }
         }
 
         data class LaLoDegPart(val h: Hemisphere, val d: Double)
@@ -613,7 +615,7 @@ sealed class ConcatThingList<RL : ResultList> {
 
 data class ConcatThingListTerminator<R>(val thing: Thing<R>) : ConcatThingList<ResultTerminal<R>>() {
     override fun createList(): ConcatListTerminator<R> {
-        return ConcatListTerminator(thing.getParseState())
+        return ConcatListTerminator(thing.getParseState(), thing.getInitialValue())
     }
 
     override fun optimise(): ConcatThingList<ResultTerminal<R>> {
@@ -628,13 +630,7 @@ data class ConcatThingNode<E, RL : ResultList>(
     override fun createList(): ConcatList<ResultNode<E, RL>> {
         val initial = thing.getInitialValue()
 
-        val initialLastValue =
-                if (initial != null)
-                    initial
-                else
-                    emptySet()
-
-        return ConcatListNode(thing.getParseState(), initialLastValue, false, tail.createList())
+        return ConcatListNode(thing.getParseState(), initial, false, tail.createList())
     }
 
     override fun optimise(): ConcatThingList<ResultNode<E, RL>> {
@@ -650,9 +646,19 @@ sealed class ConcatList<RL : ResultList> {
     abstract fun acceptedChars(): Set<Char>
     abstract fun onChar(char: Char): ParseResult<RL>
     abstract fun canSkip(): Boolean
+    abstract fun getInitialValue(): Set<RL>?
 }
 
-class ConcatListTerminator<E>(val state: ParseState<E>) : ConcatList<ResultTerminal<E>>() {
+class ConcatListTerminator<E>(val state: ParseState<E>, val initial: Set<E>?) : ConcatList<ResultTerminal<E>>() {
+    override fun getInitialValue(): Set<ResultTerminal<E>>? {
+        return if (initial == null)
+            null
+        else
+            initial
+                    .map { ResultTerminal(it) }
+                    .toSet()
+    }
+
     override fun canSkip(): Boolean {
         return state.canSkip()
     }
@@ -670,10 +676,28 @@ class ConcatListTerminator<E>(val state: ParseState<E>) : ConcatList<ResultTermi
 
 class ConcatListNode<E, LR : ResultList>(
         val state: ParseState<E>,
-        var lastResult: Set<E>,
+        val initial: Set<E>?,
         var done: Boolean,
         val tail: ConcatList<LR>
 ) : ConcatList<ResultNode<E, LR>>() {
+    var lastResult: Set<E> =
+            if (initial != null)
+                initial
+            else
+                emptySet()
+
+    override fun getInitialValue(): Set<ResultNode<E, LR>>? {
+        val tailInit = tail.getInitialValue()
+
+        if (initial != null && tailInit != null) {
+            return cross(initial, tailInit)
+                    .map { pair -> ResultNode(pair.first, pair.second) }
+                    .toSet()
+        } else {
+            return null
+        }
+    }
+
     override fun acceptedChars(): Set<Char> {
         if (done) {
             return tail.acceptedChars()
@@ -704,7 +728,17 @@ class ConcatListNode<E, LR : ResultList>(
                     done = true
                 }
 
-                return ParseResult(emptySet(), false)
+                val tailInit = tail.getInitialValue()
+                if (tailInit == null) {
+                    return ParseResult(emptySet(), false)
+                } else {
+                    return ParseResult(
+                            cross(lastResult, tailInit)
+                                    .map { pair -> ResultNode(pair.first, pair.second) }
+                                    .toSet(),
+                            false
+                    )
+                }
             }
         }
     }

@@ -27,6 +27,7 @@ class ConverterFragment : Fragment() {
 
         val parsed = RxTextView.textChanges(input)
                 .map { parse(it) }
+                .share()
 
         val laLoMin = parsed
                 .map { mapDegree(LaLoMinuteFactory, it) }
@@ -51,6 +52,9 @@ class ConverterFragment : Fragment() {
         if (coordinates.size == 1) {
             return Optional.of(coordinates.iterator().next().toLaLoDegree())
         } else {
+            if(coordinates.size > 1) {
+                println("Found multiple: $coordinates") //TODO Remove
+            }
             return Optional.empty()
         }
     }
