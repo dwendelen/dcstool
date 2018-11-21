@@ -35,14 +35,6 @@ class ConverterFragment : Fragment() {
         val spinner3: Spinner = view.findViewById(R.id.spinner3)
         val output3: TextView = view.findViewById(R.id.output3)
 
-
-        val o = ArrayAdapter<String>(view.context, android.R.layout.simple_spinner_item, arrayOf("1", "2", "3"))
-        spinner1.adapter = o
-
-
-        RxAdapterView.itemSelections(spinner1)
-                .subscribe { i -> println(i) }
-
         val parsed = RxTextView.textChanges(input)
                 .map { parse(it) }
                 .publish()
