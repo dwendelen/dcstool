@@ -1,4 +1,4 @@
-package daan.se.dcstool
+package daan.se.dcstool.ui
 
 import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentManager
