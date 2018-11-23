@@ -1,5 +1,6 @@
 package daan.se.dcstool.ui
 
+import android.arch.lifecycle.ViewModelProviders
 import android.content.Context
 import android.os.Bundle
 import android.support.v4.app.Fragment
@@ -35,13 +36,21 @@ class ConverterFragment : Fragment() {
         val spinner3: Spinner = view.findViewById(R.id.spinner3)
         val output3: TextView = view.findViewById(R.id.output3)
 
-        val parsed = RxTextView.textChanges(input)
+        val model: Model = ViewModelProviders.of(this).get(Model::class.java)
+        input.text = model.input
+
+        val inputChanges = RxTextView.textChanges(input)
+        inputChanges.subscribe { newInput -> model.input = newInput }
+
+        val parsed = inputChanges
                 .map { parse(it) }
                 .publish()
 
-        val item1 = addGroup(view.context, parsed, spinner1, output1)
-        val item2 = addGroup(view.context, parsed, spinner2, output2)
-        val item3 = addGroup(view.context, parsed, spinner3, output3)
+        parsed.subscribe { newCoordinate -> model.coordinate = newCoordinate.orElse(null) }
+
+        val item1 = addGroup(view.context, parsed, spinner1, output1, model, 0)
+        val item2 = addGroup(view.context, parsed, spinner2, output2, model, 1)
+        val item3 = addGroup(view.context, parsed, spinner3, output3, model, 2)
 
         val parsedListener = parsed.connect()
 
@@ -56,7 +65,7 @@ class ConverterFragment : Fragment() {
         }
     }
 
-    val dropDownItems = listOf(
+    private val dropDownItems = listOf(
             DropDownItem("La Lo degrees", LaLoDegreeFactory),
             DropDownItem("La Lo minutes", LaLoMinuteFactory),
             DropDownItem("La Lo seconds", LaLoSecondFactory),
@@ -67,10 +76,18 @@ class ConverterFragment : Fragment() {
             DropDownItem("F/A-18C", LaLoMinuteFactory)
     )
 
-    fun addGroup(context: Context, input: Observable<Optional<LaLoDegree>>, spinner: Spinner, output: TextView): Disposable {
+    private fun addGroup(context: Context, input: Observable<Optional<LaLoDegree>>, spinner: Spinner, output: TextView, model: Model, i: Int): Disposable {
+        if (model.spinnerIdx[i] >= dropDownItems.size) {
+            model.spinnerIdx[i] = 0
+        }
+        spinner.setSelection(model.spinnerIdx[i])
         spinner.adapter = ArrayAdapter<DropDownItem>(context, android.R.layout.simple_spinner_dropdown_item, dropDownItems)
 
-        val factory = RxAdapterView.itemSelections(spinner)
+        val selectedIndex = RxAdapterView.itemSelections(spinner)
+        selectedIndex.subscribe { idx -> model.spinnerIdx[i] = idx }
+
+
+        val factory = selectedIndex
                 .map(dropDownItems::get)
                 .map(DropDownItem::factory)
 
@@ -80,7 +97,7 @@ class ConverterFragment : Fragment() {
                 .subscribe(output::setText)
     }
 
-    fun parse(input: CharSequence): Optional<LaLoDegree> {
+    private fun parse(input: CharSequence): Optional<LaLoDegree> {
         val coordinates = parser.parseChars(input)
 
         if (coordinates.size == 1) {
@@ -93,7 +110,7 @@ class ConverterFragment : Fragment() {
         }
     }
 
-    fun mapDegree(factory: CoordinateFactory<*>, laLoDegree: Optional<LaLoDegree>): String {
+    private fun mapDegree(factory: CoordinateFactory<*>, laLoDegree: Optional<LaLoDegree>): String {
         return laLoDegree
                 .map(factory::fromLaLoDegree)
                 .map(Coordinate::print)

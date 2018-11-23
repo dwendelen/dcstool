@@ -1,8 +1,8 @@
 package daan.se.dcstool.ui
 
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.v4.view.ViewPager
+import android.support.v7.app.AppCompatActivity
 import daan.se.dcstool.R
 
 class MainActivity : AppCompatActivity() {
