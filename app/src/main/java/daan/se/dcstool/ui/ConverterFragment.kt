@@ -73,7 +73,9 @@ class ConverterFragment : Fragment() {
             DropDownItem("MGRS", MGRSFactory),
             DropDownItem("AJS-37", LaLoSecondFactory),
             DropDownItem("M-2000C", LaLoMinuteFactory),
-            DropDownItem("F/A-18C", LaLoMinuteFactory)
+            DropDownItem("F/A-18C", LaLoMinuteFactory),
+            DropDownItem("A-10C LaLo", LaLoMinuteFactory),
+            DropDownItem("A-10C MGRS", MGRSFactory)
     )
 
     private fun addGroup(context: Context, input: Observable<Optional<LaLoDegree>>, spinner: Spinner, output: TextView, model: Model, i: Int): Disposable {
