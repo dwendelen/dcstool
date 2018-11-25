@@ -7,19 +7,21 @@ import android.support.v4.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.Spinner
 import android.widget.TextView
 import com.jakewharton.rxbinding2.view.RxView
-import com.jakewharton.rxbinding2.widget.RxAdapterView
 import com.jakewharton.rxbinding2.widget.RxTextView
 import io.reactivex.Observable
 import io.reactivex.disposables.Disposable
 import io.reactivex.functions.BiFunction
-import se.daan.dcstool.model.*
+import se.daan.dcstool.model.Coordinate
+import se.daan.dcstool.model.CoordinateFactory
+import se.daan.dcstool.model.LaLoDegree
 import se.daan.dcstool.model.parser.Parser
+import se.daan.dcstool.ui.model.CoordinateSystem
 import se.daan.dcstool.ui.model.Model
+import se.daan.dcstool.ui.model.coordinateSystems
 import java.util.*
 
 
@@ -40,14 +42,14 @@ class ConverterFragment : Fragment() {
         val output3: TextView = view.findViewById(R.id.output3)
         val button: Button = view.findViewById(R.id.save_button)
 
-        val model: Model = ViewModelProviders.of(this).get(Model::class.java)
+        val model: Model = ViewModelProviders.of(activity!!).get(Model::class.java)
         input.text = model.input
 
         val inputChanges = RxTextView.textChanges(input)
         inputChanges.subscribe { newInput -> model.input = newInput }
 
         val parsed = inputChanges
-                .map { parse(it) }
+                .map(this::parse)
                 .publish()
 
         parsed.subscribe { newCoordinate -> model.coordinate = newCoordinate.orElse(null) }
@@ -62,57 +64,36 @@ class ConverterFragment : Fragment() {
                 RxView.clicks(button)
                         .subscribe {
                             val saveDialog = SaveDialog()
-                            saveDialog.name.subscribe(
-                                    { char -> println("Saved $char") },
-                                    { e -> throw e },
-                                    { println("Cancelled") }
-                            )
+                            saveDialog.name
+                                    .subscribe(model::saveCoordinate)
                             saveDialog.show(fragmentManager, "save_dialog")
                         }
 
-        subscriptions = listOf(item1, item2, item3, parsedListener, buttonSubscription)
+        subscriptions = listOf(item1, item2, item3, listOf(parsedListener), listOf(buttonSubscription)).flatten()
 
         return view
     }
 
-    data class DropDownItem(val name: String, val factory: CoordinateFactory<*>) {
+    data class DropDownItem(val coordinateSystem: CoordinateSystem) {
         override fun toString(): String {
-            return name
+            return coordinateSystem.name.toString()
         }
     }
 
-    private val dropDownItems = listOf(
-            DropDownItem("La Lo degrees", LaLoDegreeFactory),
-            DropDownItem("La Lo minutes", LaLoMinuteFactory),
-            DropDownItem("La Lo seconds", LaLoSecondFactory),
-            DropDownItem("UTM", UTMFactory),
-            DropDownItem("MGRS", MGRSFactory),
-            DropDownItem("AJS-37", LaLoSecondFactory),
-            DropDownItem("M-2000C", LaLoMinuteFactory),
-            DropDownItem("F/A-18C", LaLoMinuteFactory),
-            DropDownItem("A-10C LaLo", LaLoMinuteFactory),
-            DropDownItem("A-10C MGRS", MGRSFactory)
-    )
-
-    private fun addGroup(context: Context, input: Observable<Optional<LaLoDegree>>, spinner: Spinner, output: TextView, model: Model, i: Int): Disposable {
-        if (model.spinnerIdx[i] >= dropDownItems.size) {
+    private fun addGroup(context: Context, input: Observable<Optional<LaLoDegree>>, spinner: Spinner, output: TextView, model: Model, i: Int): List<Disposable> {
+        if (model.spinnerIdx[i] >= coordinateSystems.size) {
             model.spinnerIdx[i] = 0
         }
-        spinner.setSelection(model.spinnerIdx[i])
-        spinner.adapter = ArrayAdapter<DropDownItem>(context, android.R.layout.simple_spinner_dropdown_item, dropDownItems)
 
-        val selectedIndex = RxAdapterView.itemSelections(spinner)
-        selectedIndex.subscribe { idx -> model.spinnerIdx[i] = idx }
+        val dropDown = CoordinateSystemDropdownBuilder.build(context, spinner, model.spinnerIdx[i])
+        val factory = dropDown.map { it.second }
 
-
-        val factory = selectedIndex
-                .map(dropDownItems::get)
-                .map(DropDownItem::factory)
-
-        return Observable.combineLatest(input, factory, BiFunction<Optional<LaLoDegree>, CoordinateFactory<*>, String> { inp, fac ->
+        val idxDisposable = dropDown.subscribe { model.spinnerIdx[i] = it.first }
+        val textDisposable = Observable.combineLatest(input, factory, BiFunction<Optional<LaLoDegree>, CoordinateFactory<*>, String> { inp, fac ->
             mapDegree(fac, inp)
-        })
-                .subscribe(output::setText)
+        }).subscribe(output::setText)
+
+        return listOf(idxDisposable, textDisposable)
     }
 
     private fun parse(input: CharSequence): Optional<LaLoDegree> {
@@ -136,9 +117,8 @@ class ConverterFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
-
         subscriptions.forEach(Disposable::dispose)
         subscriptions = emptyList()
+        super.onDestroyView()
     }
 }
