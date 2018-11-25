@@ -549,25 +549,25 @@ data class OrThing<T>(
 
 data class OrState<T>(val state: ParseState<T>, var done: Boolean) {
     fun getAcceptedChars(): Set<Char> {
-        if (done) {
-            return emptySet()
+        return if (done) {
+            emptySet()
         } else {
-            return state.getAcceptedChars()
+            state.getAcceptedChars()
         }
     }
 
     fun onChar(char: Char): Set<T> {
-        if (done) {
-            return emptySet()
+        return if (done) {
+            emptySet()
         } else {
             if (!state.getAcceptedChars().contains(char)) {
                 done = true
-                return emptySet()
+                emptySet()
             } else {
                 val result = state.onChar(char)
                 done = result.done
 
-                return result.result
+                result.result
             }
         }
     }
@@ -651,12 +651,7 @@ sealed class ConcatList<RL : ResultList> {
 
 class ConcatListTerminator<E>(val state: ParseState<E>, val initial: Set<E>?) : ConcatList<ResultTerminal<E>>() {
     override fun getInitialValue(): Set<ResultTerminal<E>>? {
-        return if (initial == null)
-            null
-        else
-            initial
-                    .map { ResultTerminal(it) }
-                    .toSet()
+        return initial?.map { ResultTerminal(it) }?.toSet()
     }
 
     override fun canSkip(): Boolean {
@@ -680,47 +675,43 @@ class ConcatListNode<E, LR : ResultList>(
         var done: Boolean,
         val tail: ConcatList<LR>
 ) : ConcatList<ResultNode<E, LR>>() {
-    var lastResult: Set<E> =
-            if (initial != null)
-                initial
-            else
-                emptySet()
+    var lastResult: Set<E> = initial ?: emptySet()
 
     override fun getInitialValue(): Set<ResultNode<E, LR>>? {
         val tailInit = tail.getInitialValue()
 
-        if (initial != null && tailInit != null) {
-            return cross(initial, tailInit)
+        return if (initial != null && tailInit != null) {
+            cross(initial, tailInit)
                     .map { pair -> ResultNode(pair.first, pair.second) }
                     .toSet()
         } else {
-            return null
+            null
         }
     }
 
     override fun acceptedChars(): Set<Char> {
-        if (done) {
-            return tail.acceptedChars()
+        return if (done) {
+            tail.acceptedChars()
         } else {
             val acceptedChars = state.getAcceptedChars()
 
             if (state.canSkip()) {
                 val otherChars = tail.acceptedChars()
-                return otherChars.union(acceptedChars)
+                otherChars.union(acceptedChars)
             } else {
-                return acceptedChars
+                acceptedChars
             }
         }
     }
 
     override fun onChar(char: Char): ParseResult<ResultNode<E, LR>> {
-        if (done) {
-            return onCharOnTail(char)
+        return if (done) {
+            onCharOnTail(char)
         } else {
             if (!state.getAcceptedChars().contains(char)) {
                 done = true
 
-                return onCharOnTail(char)
+                onCharOnTail(char)
             } else {
                 val result = state.onChar(char)
                 lastResult = result.result
@@ -729,10 +720,11 @@ class ConcatListNode<E, LR : ResultList>(
                 }
 
                 val tailInit = tail.getInitialValue()
+
                 if (tailInit == null) {
-                    return ParseResult(emptySet(), false)
+                    ParseResult(emptySet(), false)
                 } else {
-                    return ParseResult(
+                    ParseResult(
                             cross(lastResult, tailInit)
                                     .map { pair -> ResultNode(pair.first, pair.second) }
                                     .toSet(),
@@ -754,10 +746,10 @@ class ConcatListNode<E, LR : ResultList>(
     }
 
     override fun canSkip(): Boolean {
-        if (state.canSkip()) {
-            return tail.canSkip()
+        return if (state.canSkip()) {
+            tail.canSkip()
         } else {
-            return false
+            false
         }
     }
 }

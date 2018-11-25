@@ -23,7 +23,7 @@ data class UTM
 
         val e = DecimalFormat("000000", symbols).format(easting)
         val n = DecimalFormat("0000000", symbols).format(northing)
-        val latBand = if (latitudeBand != null) latitudeBand.name else ""
+        val latBand = latitudeBand?.name ?: ""
 
         return "${hemisphere.abbreviation} $zone$latBand $e $n"
     }
