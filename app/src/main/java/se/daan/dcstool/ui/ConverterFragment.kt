@@ -19,9 +19,7 @@ import se.daan.dcstool.model.Coordinate
 import se.daan.dcstool.model.CoordinateFactory
 import se.daan.dcstool.model.LaLoDegree
 import se.daan.dcstool.model.parser.Parser
-import se.daan.dcstool.ui.model.CoordinateSystem
 import se.daan.dcstool.ui.model.Model
-import se.daan.dcstool.ui.model.coordinateSystems
 import java.util.*
 
 
@@ -54,9 +52,9 @@ class ConverterFragment : Fragment() {
 
         parsed.subscribe { newCoordinate -> model.coordinate = newCoordinate.orElse(null) }
 
-        val item1 = addGroup(view.context, parsed, spinner1, output1, model, 0)
-        val item2 = addGroup(view.context, parsed, spinner2, output2, model, 1)
-        val item3 = addGroup(view.context, parsed, spinner3, output3, model, 2)
+        val item1 = addGroup(view.context, parsed, spinner1, output1)
+        val item2 = addGroup(view.context, parsed, spinner2, output2)
+        val item3 = addGroup(view.context, parsed, spinner3, output3)
 
         val parsedListener = parsed.connect()
 
@@ -74,26 +72,14 @@ class ConverterFragment : Fragment() {
         return view
     }
 
-    data class DropDownItem(val coordinateSystem: CoordinateSystem) {
-        override fun toString(): String {
-            return coordinateSystem.name.toString()
-        }
-    }
+    private fun addGroup(context: Context, input: Observable<Optional<LaLoDegree>>, spinner: Spinner, output: TextView): List<Disposable> {
+        val factory = CoordinateSystemDropdownBuilder.build(context, spinner)
 
-    private fun addGroup(context: Context, input: Observable<Optional<LaLoDegree>>, spinner: Spinner, output: TextView, model: Model, i: Int): List<Disposable> {
-        if (model.spinnerIdx[i] >= coordinateSystems.size) {
-            model.spinnerIdx[i] = 0
-        }
-
-        val dropDown = CoordinateSystemDropdownBuilder.build(context, spinner, model.spinnerIdx[i])
-        val factory = dropDown.map { it.second }
-
-        val idxDisposable = dropDown.subscribe { model.spinnerIdx[i] = it.first }
         val textDisposable = Observable.combineLatest(input, factory, BiFunction<Optional<LaLoDegree>, CoordinateFactory<*>, String> { inp, fac ->
             mapDegree(fac, inp)
         }).subscribe(output::setText)
 
-        return listOf(idxDisposable, textDisposable)
+        return listOf(textDisposable)
     }
 
     private fun parse(input: CharSequence): Optional<LaLoDegree> {

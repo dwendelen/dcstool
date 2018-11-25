@@ -7,11 +7,11 @@ import se.daan.dcstool.model.*
 class Model : ViewModel() {
     var input: CharSequence = ""
     var coordinate: LaLoDegree? = null
-    val spinnerIdx: Array<Int> = arrayOf(0, 0, 0)
 
     val addedFavorites: PublishSubject<Favorite> = PublishSubject.create()
 
     val favorites: MutableList<Favorite> = arrayListOf()
+    var favoriteFactory: CoordinateFactory<*> = coordinateSystems[defaultCoordinateSystemIdx].factory
 
     fun saveCoordinate(name: CharSequence) {
         coordinate?.let {
@@ -22,17 +22,18 @@ class Model : ViewModel() {
     }
 }
 
+const val defaultCoordinateSystemIdx = 5
 val coordinateSystems = listOf(
-        CoordinateSystem("La Lo degrees", LaLoDegreeFactory),
-        CoordinateSystem("La Lo minutes", LaLoMinuteFactory),
-        CoordinateSystem("La Lo seconds", LaLoSecondFactory),
-        CoordinateSystem("UTM", UTMFactory),
-        CoordinateSystem("MGRS", MGRSFactory),
         CoordinateSystem("AJS-37", LaLoSecondFactory),
         CoordinateSystem("M-2000C", LaLoMinuteFactory),
         CoordinateSystem("F/A-18C", LaLoMinuteFactory),
         CoordinateSystem("A-10C LaLo", LaLoMinuteFactory),
-        CoordinateSystem("A-10C MGRS", MGRSFactory)
+        CoordinateSystem("A-10C MGRS", MGRSFactory),
+        CoordinateSystem("La Lo degrees", LaLoDegreeFactory),
+        CoordinateSystem("La Lo minutes", LaLoMinuteFactory),
+        CoordinateSystem("La Lo seconds", LaLoSecondFactory),
+        CoordinateSystem("UTM", UTMFactory),
+        CoordinateSystem("MGRS", MGRSFactory)
 )
 
 data class CoordinateSystem(val name: CharSequence, val factory: CoordinateFactory<*>)
