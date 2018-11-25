@@ -8,8 +8,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.Spinner
 import android.widget.TextView
+import com.jakewharton.rxbinding2.view.RxView
 import com.jakewharton.rxbinding2.widget.RxAdapterView
 import com.jakewharton.rxbinding2.widget.RxTextView
 import daan.se.dcstool.R
@@ -19,6 +21,7 @@ import io.reactivex.Observable
 import io.reactivex.disposables.Disposable
 import io.reactivex.functions.BiFunction
 import java.util.*
+
 
 class ConverterFragment : Fragment() {
     private var subscriptions: List<Disposable> = emptyList()
@@ -35,6 +38,7 @@ class ConverterFragment : Fragment() {
         val output2: TextView = view.findViewById(R.id.output2)
         val spinner3: Spinner = view.findViewById(R.id.spinner3)
         val output3: TextView = view.findViewById(R.id.output3)
+        val button: Button = view.findViewById(R.id.save_button)
 
         val model: Model = ViewModelProviders.of(this).get(Model::class.java)
         input.text = model.input
@@ -54,7 +58,19 @@ class ConverterFragment : Fragment() {
 
         val parsedListener = parsed.connect()
 
-        subscriptions = listOf(item1, item2, item3, parsedListener)
+        val buttonSubscription =
+                RxView.clicks(button)
+                        .subscribe {
+                            val saveDialog = SaveDialog()
+                            saveDialog.name.subscribe(
+                                    { char -> println("Saved $char") },
+                                    { e -> throw e },
+                                    { println("Cancelled") }
+                            )
+                            saveDialog.show(fragmentManager, "save_dialog")
+                        }
+
+        subscriptions = listOf(item1, item2, item3, parsedListener, buttonSubscription)
 
         return view
     }
