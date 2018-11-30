@@ -34,8 +34,8 @@ class Parser {
         val S = CharThing('S', Hemisphere.SOUTH)
         val E = CharThing('E', Hemisphere.EAST)
         val W = CharThing('W', Hemisphere.WEST)
-        val ns = N.or(S)
-        val ew = E.or(W)
+        val ns = or(N, S)
+        val ew = or(E, W)
 
         val degree = CharThing('°', null)
         val minute = CharThing('\'', null)
@@ -45,8 +45,7 @@ class Parser {
         val maybeSpace = MaybeThing(space, null)
 
         val int0_9 = DigitRange(0, 9)
-        val int0_59 =
-                int0_9.or(DigitRange(0, 5).concat(int0_9, composeNumber))
+        val int0_59 = or(int0_9, DigitRange(0, 5).concat(int0_9, composeNumber))
         val int0_179 =
                 OrThing(setOf(
                         concatThing3(Digit(0), int0_9, int0_9, composeNumber3),
@@ -55,12 +54,12 @@ class Parser {
                         int0_9
                 ))
 
-        val integer = int0_9.star(0, composeNumber)
+        val integer = StarThing(int0_9,0, composeNumber)
 
         fun toDecimal(int: Thing<Int>): Thing<Double> {
             val afterComma =
                     CharThing('.', null)
-                            .concat(DigitRangeAsString(0, 9).star("0.") { a, b -> a + b }) { _, a ->
+                            .concat(StarThing(DigitRangeAsString(0, 9),"0.") { a, b -> a + b }) { _, a ->
                                 a.toDouble()
                             }
             return int.concat(MaybeThing(afterComma, 0.0)) { a, b -> a + b }
@@ -84,7 +83,7 @@ class Parser {
                 maybeSpace,
                 laLoDegPart(ew, int0_179)
         ) { lat, _, lon ->
-            LaLoDegree(lat.h, lat.d, lon.h, lon.d) as Coordinate
+            LaLoDegree(lat.h, lat.d, lon.h, lon.d)
         }
 
 
@@ -95,7 +94,7 @@ class Parser {
                     hemi,
                     maybeSpace,
                     degreeRange,
-                    degree.or(space),
+                    or(degree, space),
                     toDecimal(int0_59),
                     MaybeThing(minute, null)
             ) { h, _, d, _, m, _ ->
@@ -108,7 +107,7 @@ class Parser {
                 maybeSpace,
                 laLoMinPart(ew, int0_179)
         ) { lat, _, lon ->
-            LaLoMinute(lat.h, lat.d, lat.m, lon.h, lon.d, lon.m) as Coordinate
+            LaLoMinute(lat.h, lat.d, lat.m, lon.h, lon.d, lon.m)
         }
 
 
@@ -119,9 +118,9 @@ class Parser {
                     hemi,
                     maybeSpace,
                     degreeRange,
-                    degree.or(space),
+                    or(degree, space),
                     int0_59,
-                    minute.or(space),
+                    or(minute, space),
                     int0_59,
                     MaybeThing(second, null)
             ) { h, _, d, _, m, _, s, _ ->
@@ -134,27 +133,29 @@ class Parser {
                 maybeSpace,
                 laLoSecPart(ew, int0_179)
         ) { lat, _, lon ->
-            LaLoSecond(lat.h, lat.d, lat.m, lat.s.toDouble(), lon.h, lon.d, lon.m, lon.s.toDouble()) as Coordinate
+            LaLoSecond(lat.h, lat.d, lat.m, lat.s.toDouble(), lon.h, lon.d, lon.m, lon.s.toDouble())
         }
 
 
         val zone =
-                DigitRange(1, 9)
-                        .or(DigitRange(1, 5).concat(int0_9, composeNumber))
-                        .or(Digit(6).concat(Digit(0), composeNumber))
+                OrThing(setOf(
+                        DigitRange(1, 9),
+                        DigitRange(1, 5).concat(int0_9, composeNumber),
+                        Digit(6).concat(Digit(0), composeNumber)
+                ))
 
         val utm =
                 concatThing8(
                         ns,
                         maybeSpace,
                         zone,
-                        MaybeThing(EnumValues(LatitudeBand.values()) as Thing<LatitudeBand?>, null as LatitudeBand?),
+                        MaybeThing(EnumValues(LatitudeBand.values()), null),
                         maybeSpace,
                         integer,
                         space,
                         integer
                 ) { h, _, z, l, _, e, _, n ->
-                    UTM(h, z, l, e.toDouble(), n.toDouble()) as Coordinate
+                    UTM(h, z, l, e.toDouble(), n.toDouble())
                 }
 
 
@@ -169,7 +170,7 @@ class Parser {
                         integer,
                         space,
                         integer
-                ) { z, l, _, c, r, _, n, _, e -> MGRS(z, l, c, r, n.toDouble() + 0.5, e.toDouble() + 0.5) as Coordinate }
+                ) { z, l, _, c, r, _, n, _, e -> MGRS(z, l, c, r, n.toDouble() + 0.5, e.toDouble() + 0.5) }
 
         val result = OrThing(setOf(
                 laLoDegree,
@@ -339,7 +340,7 @@ class Parser {
 
         return (from + 1..to)
                 .fold(initial) { acc, d ->
-                    acc.or(Digit(d))
+                    or(acc, Digit(d))
                 }
     }
 
@@ -354,7 +355,7 @@ class Parser {
 
         return (from + 1..to)
                 .fold(initial) { acc, d ->
-                    acc.or(DigitAsString(d))
+                    or(acc, DigitAsString(d))
                 }
     }
 
@@ -367,38 +368,21 @@ class Parser {
 
         return enumValues.sliceArray(1..enumValues.size - 1)
                 .fold(first) { acc, e ->
-                    acc.or(EnumValue(e))
+                    or(acc, EnumValue(e))
                 }
     }
 }
 
-sealed class Thing<T> {
-    fun or(other: Thing<T>): Thing<T> {
-        return OrThing(setOf(this, other))
-    }
+fun <A: S, B: S, S> or(a: Thing<A>, b: Thing<B>): Thing<S> {
+    return OrThing(setOf(a, b))
+}
 
+sealed class Thing<out T> {
     fun <O, R> concat(second: Thing<O>, f: (T, O) -> R): Thing<R> {
         val list = ConcatThingNode(this,
                 ConcatThingListTerminator(second)
         )
         return ConcatThing(list) { f(it.item, it.tail.item) }
-    }
-
-    fun repeat(n: Int, f: (T, T) -> T): Thing<T> {
-        var acc = this
-        for (i in 2..n) {
-            acc = acc.concat(this, f)
-        }
-
-        return acc
-    }
-
-    fun star(initial: T, f: (T, T) -> T): Thing<T> {
-        return StarThing(this, initial, f)
-    }
-
-    fun <O> map(f: (T) -> O): Thing<O> {
-        return MapThing(this, f)
     }
 
     abstract fun getParseState(): ParseState<T>
@@ -410,7 +394,7 @@ sealed class Thing<T> {
     abstract fun optimise(): Thing<T>
 }
 
-interface ParseState<T> {
+interface ParseState<out T> {
     fun getAcceptedChars(): Set<Char>
     fun onChar(char: Char): ParseResult<T>
     fun canSkip(): Boolean
@@ -511,7 +495,7 @@ data class OrThing<T>(
 ) : Thing<T>() {
     override fun getParseState(): ParseState<T> {
         return object : ParseState<T> {
-            var states = things.map { OrState(it.getParseState(), false) }
+            val states = things.map { OrState(it.getParseState(), false) }
 
             override fun getAcceptedChars(): Set<Char> {
                 return states.fold(setOf()) { s1, state ->
@@ -547,7 +531,7 @@ data class OrThing<T>(
     }
 }
 
-data class OrState<T>(val state: ParseState<T>, var done: Boolean) {
+data class OrState<out T>(val state: ParseState<T>, var done: Boolean) {
     fun getAcceptedChars(): Set<Char> {
         return if (done) {
             emptySet()
