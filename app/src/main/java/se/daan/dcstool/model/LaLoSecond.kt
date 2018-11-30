@@ -31,7 +31,7 @@ data class LaLoSecond
         val lonMStr = DecimalFormat("00", symbols).format(abs(longitudeMinutes))
         val lonSStr = DecimalFormat("00", symbols).format(abs(longitudeSeconds))
 
-        return "$latChar $latDStr\u00b0$latMStr'$latSStr\" $lonChar $lonDStr\u00b0$lonMStr'$lonSStr\""
+        return "$latChar $latDStr° $latMStr' $latSStr\" $lonChar $lonDStr° $lonMStr' $lonSStr\""
     }
 
     override fun toLaLoDegree(): LaLoDegree {

@@ -27,7 +27,7 @@ data class LaLoMinute
         val lonDStr = DecimalFormat("000", symbols).format(longitudeDegrees)
         val lonMStr = DecimalFormat("00.00", symbols).format(longitudeMinutes)
 
-        return "$latChar $latDStr\u00b0$latMStr' $lonChar $lonDStr\u00b0$lonMStr'"
+        return "$latChar $latDStr° $latMStr' $lonChar $lonDStr° $lonMStr'"
     }
 
     override fun toLaLoDegree(): LaLoDegree {
@@ -41,7 +41,6 @@ data class LaLoMinute
 
 object LaLoMinuteFactory: CoordinateFactory<LaLoMinute> {
     override  fun fromLaLoDegree(laLoDegree: LaLoDegree): LaLoMinute {
-        "([NS]) *(\\d+) +(\\d+([.,]\\d*)?) *([EW]) ?(\\d+) (\\d+([.,]\\d+)?)".toRegex()
         val latD = truncate(laLoDegree.latitudeDegrees)
         val latM = 60 * (laLoDegree.latitudeDegrees - latD)
 

@@ -21,7 +21,7 @@ data class LaLoDegree
         val latStr = DecimalFormat("00.0000", symbols).format(latitudeDegrees)
         val longStr = DecimalFormat("000.0000", symbols).format(longitudeDegrees)
 
-        return "$latChar $latStr\u00b0 $lonChar $longStr\u00b0"
+        return "$latChar $latStr° $lonChar $longStr°"
     }
 
     override fun toLaLoDegree(): LaLoDegree {
