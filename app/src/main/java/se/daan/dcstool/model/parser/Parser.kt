@@ -51,12 +51,12 @@ class Parser {
                         int0_9
                 ))
 
-        val integer = StarThing(int0_9,0, composeNumber)
+        val integer = StarThing(int0_9, 0, composeNumber)
 
         fun toDecimal(int: Thing<Int>): Thing<Double> {
             val afterComma =
                     CharThing('.', null)
-                            .concat(StarThing(DigitRangeAsString(0, 9),"0.") { a, b -> a + b }) { _, a ->
+                            .concat(StarThing(DigitRangeAsString(0, 9), "0.") { a, b -> a + b }) { _, a ->
                                 a.toDouble()
                             }
             return int.concat(MaybeThing(afterComma, 0.0)) { a, b -> a + b }
@@ -80,7 +80,7 @@ class Parser {
                 maybeSpace,
                 laLoDegPart(ew, int0_179)
         ) { lat, _, lon ->
-            LaLoDegree(lat.h, lat.d, lon.h, lon.d)
+            LaLo(DegreeLaPart(lat.h, lat.d), DegreeLoPart(lon.h, lon.d))
         }
 
 
@@ -104,7 +104,7 @@ class Parser {
                 maybeSpace,
                 laLoMinPart(ew, int0_179)
         ) { lat, _, lon ->
-            LaLoMinute(lat.h, lat.d, lat.m, lon.h, lon.d, lon.m)
+            LaLo(MinuteLaPart(lat.h, lat.d, lat.m), MinuteLoPart(lon.h, lon.d, lon.m))
         }
 
 
@@ -130,7 +130,7 @@ class Parser {
                 maybeSpace,
                 laLoSecPart(ew, int0_179)
         ) { lat, _, lon ->
-            LaLoSecond(lat.h, lat.d, lat.m, lat.s.toDouble(), lon.h, lon.d, lon.m, lon.s.toDouble())
+            laLoSecond(lat.h, lat.d, lat.m, lat.s.toDouble(), lon.h, lon.d, lon.m, lon.s.toDouble())
         }
 
 
@@ -370,7 +370,7 @@ class Parser {
     }
 }
 
-fun <A: S, B: S, S> or(a: Thing<A>, b: Thing<B>): Thing<S> {
+fun <A : S, B : S, S> or(a: Thing<A>, b: Thing<B>): Thing<S> {
     return OrThing(setOf(a, b))
 }
 

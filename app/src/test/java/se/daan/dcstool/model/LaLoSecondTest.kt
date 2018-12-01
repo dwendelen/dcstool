@@ -13,7 +13,7 @@ class LaLoSecondTest {
     }
 
     fun test(latH: Hemisphere, latD: Int, latM: Int, latS: Double, lonH: Hemisphere, lonD: Int, lonM: Int, lonS:Double, expected: String) {
-        val actual: Any = LaLoSecond(latH, latD, latM, latS, lonH, lonD, lonM, lonS).print()
+        val actual: Any = laLoSecond(latH, latD, latM, latS, lonH, lonD, lonM, lonS).print()
         println(actual)
         assertEquals(expected, actual);
     }

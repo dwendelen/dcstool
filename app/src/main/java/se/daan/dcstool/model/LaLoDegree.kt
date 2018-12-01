@@ -1,36 +1,42 @@
 package se.daan.dcstool.model
 
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
-
-data class LaLoDegree
-(
-        val latitudeHemisphere: Hemisphere,
-        val latitudeDegrees: Double,
-        val longitudeHemisphere: Hemisphere,
-        val longitudeDegrees: Double
-) : Coordinate
-{
-    override fun print(): String {
-        val latChar = latitudeHemisphere.abbreviation
-        val lonChar = longitudeHemisphere.abbreviation
-
-        val symbols = DecimalFormatSymbols()
-        symbols.decimalSeparator = '.'
-
-        val latStr = DecimalFormat("00.0000", symbols).format(latitudeDegrees)
-        val longStr = DecimalFormat("000.0000", symbols).format(longitudeDegrees)
-
-        return "$latChar $latStr° $lonChar $longStr°"
+object LaLoDegreeFactory : CoordinateFactory<LaLo<DegreeLaPart, DegreeLoPart>> {
+    override fun fromLaLoDegree(laLoDegree: LaLo<DegreeLaPart, DegreeLoPart>): LaLo<DegreeLaPart, DegreeLoPart> {
+        return laLoDegree
     }
+}
 
-    override fun toLaLoDegree(): LaLoDegree {
+abstract class DegreePart : LaLoPart {
+    abstract val hemi: Hemisphere
+    abstract val degree: Double
+    abstract val degreePatternPrefix: String
+
+    override fun print(): String {
+        val h = hemi.abbreviation
+        val d = format(degree, "${degreePatternPrefix}00.0000")
+
+        return "$h $d°"
+    }
+}
+
+data class DegreeLaPart(
+        override val hemi: Hemisphere,
+        override val degree: Double
+) : DegreePart(), LaPart {
+    override val degreePatternPrefix = ""
+
+    override fun toDegreeLaPart(): DegreeLaPart {
         return this
     }
 }
 
-object LaLoDegreeFactory : CoordinateFactory<LaLoDegree> {
-    override fun fromLaLoDegree(laLoDegree: LaLoDegree): LaLoDegree {
-        return laLoDegree
+data class DegreeLoPart(
+        override val hemi: Hemisphere,
+        override val degree: Double
+) : DegreePart(), LoPart {
+    override val degreePatternPrefix = "0"
+
+    override fun toDegreeLoPart(): DegreeLoPart {
+        return this
     }
 }

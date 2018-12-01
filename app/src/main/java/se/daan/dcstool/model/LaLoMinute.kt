@@ -1,52 +1,52 @@
 package se.daan.dcstool.model
 
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
-import kotlin.math.truncate
+object LaLoMinuteFactory : CoordinateFactory<LaLo<MinuteLaPart, MinuteLoPart>> {
+    override fun fromLaLoDegree(laLoDegree: LaLo<DegreeLaPart, DegreeLoPart>): LaLo<MinuteLaPart, MinuteLoPart> {
+        val latDM = splitDecimal(laLoDegree.lat.degree)
+        val lat = MinuteLaPart(laLoDegree.lat.hemi, latDM.first, latDM.second)
 
-data class LaLoMinute
-(
-        val latitudeHemisphere: Hemisphere,
-        val latitudeDegrees: Int,
-        val latitudeMinutes: Double,
-        val longitudeHemisphere: Hemisphere,
-        val longitudeDegrees: Int,
-        val longitudeMinutes: Double
-): Coordinate
-{
+        val lonDM = splitDecimal(laLoDegree.lon.degree)
+        val lon = MinuteLoPart(laLoDegree.lon.hemi, lonDM.first, lonDM.second)
 
-    override fun print(): String {
-        val latChar = latitudeHemisphere.abbreviation
-        val lonChar = longitudeHemisphere.abbreviation
-
-        val symbols = DecimalFormatSymbols()
-        symbols.decimalSeparator = '.'
-
-        val latDStr = DecimalFormat("00", symbols).format(latitudeDegrees)
-        val latMStr = DecimalFormat("00.00", symbols).format(latitudeMinutes)
-        val lonDStr = DecimalFormat("000", symbols).format(longitudeDegrees)
-        val lonMStr = DecimalFormat("00.00", symbols).format(longitudeMinutes)
-
-        return "$latChar $latDStr° $latMStr' $lonChar $lonDStr° $lonMStr'"
-    }
-
-    override fun toLaLoDegree(): LaLoDegree {
-        val lat = latitudeDegrees.toDouble() + (latitudeMinutes / 60.0)
-
-        val lon = longitudeDegrees.toDouble() + (longitudeMinutes / 60.0)
-
-        return LaLoDegree(latitudeHemisphere,lat, longitudeHemisphere, lon)
+        return LaLo(lat, lon)
     }
 }
 
-object LaLoMinuteFactory: CoordinateFactory<LaLoMinute> {
-    override  fun fromLaLoDegree(laLoDegree: LaLoDegree): LaLoMinute {
-        val latD = truncate(laLoDegree.latitudeDegrees)
-        val latM = 60 * (laLoDegree.latitudeDegrees - latD)
+abstract class MinutePart : LaLoPart {
+    abstract val hemi: Hemisphere
+    abstract val degree: Int
+    abstract val minute: Double
+    abstract val degreePatternPrefix: String
 
-        val lonD = truncate(laLoDegree.longitudeDegrees)
-        val lonM = 60 * (laLoDegree.longitudeDegrees - lonD)
+    override fun print(): String {
+        val h = hemi.abbreviation
+        val d = format(degree, "${degreePatternPrefix}00")
+        val m = format(minute, "00.00")
 
-        return LaLoMinute(laLoDegree.latitudeHemisphere, latD.toInt(), latM, laLoDegree.longitudeHemisphere, lonD.toInt(), lonM)
+        return "$h $d° $m'"
+    }
+}
+
+data class MinuteLaPart(
+        override val hemi: Hemisphere,
+        override val degree: Int,
+        override val minute: Double
+) : MinutePart(), LaPart {
+    override val degreePatternPrefix = ""
+
+    override fun toDegreeLaPart(): DegreeLaPart {
+        return DegreeLaPart(hemi, toDecimal(degree, minute))
+    }
+}
+
+data class MinuteLoPart(
+        override val hemi: Hemisphere,
+        override val degree: Int,
+        override val minute: Double
+) : MinutePart(), LoPart {
+    override val degreePatternPrefix = "0"
+
+    override fun toDegreeLoPart(): DegreeLoPart {
+        return DegreeLoPart(hemi, toDecimal(degree, minute))
     }
 }

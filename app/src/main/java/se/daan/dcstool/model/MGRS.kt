@@ -6,15 +6,14 @@ import java.text.DecimalFormatSymbols
 
 data class MGRS
 (
-    val zone: Int,
-    val latitudeBand: LatitudeBand,
-    val columnLetter: ColumnLetter,
-    val rowLetter: RowLetter,
-    val easting: Double,
-    val northing: Double
-) : Coordinate
-{
-    override fun toLaLoDegree(): LaLoDegree {
+        val zone: Int,
+        val latitudeBand: LatitudeBand,
+        val columnLetter: ColumnLetter,
+        val rowLetter: RowLetter,
+        val easting: Double,
+        val northing: Double
+) : Coordinate {
+    override fun toLaLoDegree(): LaLo<DegreeLaPart, DegreeLoPart> {
         return toUTM().toLaLoDegree()
     }
 
@@ -39,8 +38,8 @@ data class MGRS
     }
 }
 
-object MGRSFactory: CoordinateFactory<MGRS> {
-    override fun fromLaLoDegree(laLoDegree: LaLoDegree): MGRS {
+object MGRSFactory : CoordinateFactory<MGRS> {
+    override fun fromLaLoDegree(laLoDegree: LaLo<DegreeLaPart, DegreeLoPart>): MGRS {
         return fromUTM(UTMFactory.fromLaLoDegree(laLoDegree))
     }
 
@@ -117,7 +116,7 @@ enum class RowLetter {
     V;
 
     fun toUTMNorthingBase(zone: Int): Int {
-        val idx = if(zone % 2 == 1 )
+        val idx = if (zone % 2 == 1)
             ordinal
         else
             (ordinal - 5) % RowLetter.values().size
@@ -127,7 +126,7 @@ enum class RowLetter {
 
     companion object {
         fun fromZoneAndNorthing(zone: Int, northing: Double): RowLetter {
-            val idxOffset = if(zone % 2 == 1) 0 else 5
+            val idxOffset = if (zone % 2 == 1) 0 else 5
             val idx = (idxOffset + (northing / 100000.0).toInt()) % RowLetter.values().size
 
             return RowLetter.values().get(idx)

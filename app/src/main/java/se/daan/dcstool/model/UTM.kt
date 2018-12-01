@@ -38,7 +38,7 @@ data class UTM
         }
     }
 
-    override fun toLaLoDegree(): LaLoDegree {
+    override fun toLaLoDegree(): LaLo<DegreeLaPart, DegreeLoPart> {
         val N0: Double = if (hemisphere == NORTH) 0.0 else 10000000.0
 
         val e = (northing - N0) / (k0 * A)
@@ -64,14 +64,14 @@ data class UTM
         val lat = abs(phi * 180 / PI)
         val lon = lonHemisphere.sign * delta * 180 / PI
 
-        return LaLoDegree(hemisphere, lat, lonHemisphere, lon)
+        return LaLo(DegreeLaPart(hemisphere, lat), DegreeLoPart(lonHemisphere, lon))
     }
 }
 
 object UTMFactory : CoordinateFactory<UTM> {
-    override fun fromLaLoDegree(laLoDegree: LaLoDegree): UTM {
-        val lat = laLoDegree.latitudeDegrees * laLoDegree.latitudeHemisphere.sign
-        val lon = laLoDegree.longitudeDegrees * laLoDegree.longitudeHemisphere.sign
+    override fun fromLaLoDegree(laLoDegree: LaLo<DegreeLaPart, DegreeLoPart>): UTM {
+        val lat = laLoDegree.lat.degree * laLoDegree.lat.hemi.sign
+        val lon = laLoDegree.lon.degree * laLoDegree.lon.hemi.sign
 
         val zone = floor((lon + 180.0) / 6.0).toInt() + 1
         val latitudeBand = LatitudeBand.getBandForLatitude(lat)
@@ -80,7 +80,7 @@ object UTMFactory : CoordinateFactory<UTM> {
         val delta = lon / 180.0 * PI
         val delta0 = (zone * 6 - 180 - 3) / 180.0 * PI
 
-        val N0: Double = if (laLoDegree.latitudeHemisphere == NORTH) 0.0 else 10000000.0
+        val N0: Double = if (laLoDegree.lat.hemi == NORTH) 0.0 else 10000000.0
         val t = sinh(atanh(sin(phi)) - _2vn_1_n * atanh(_2vn_1_n * sin(phi)))
         val ee = atan(t / cos(delta - delta0))
         val nn = atanh(sin(delta - delta0) / sqrt(1 + (t * t)))
@@ -96,7 +96,7 @@ object UTMFactory : CoordinateFactory<UTM> {
                 a3 * sin(6 * ee) * cosh(6 * nn)
         val N = N0 + k0 * A * (ee + sumN)
 
-        return UTM(laLoDegree.latitudeHemisphere, zone, latitudeBand, E, N)
+        return UTM(laLoDegree.lat.hemi, zone, latitudeBand, E, N)
     }
 }
 

@@ -6,7 +6,7 @@ import org.junit.Test
 class UTMTest {
     @Test
     fun testFromLaLo() {
-        val sec = LaLoSecond(
+        val sec = laLoSecond(
                 Hemisphere.NORTH, 43,38,33.0,
                 Hemisphere.WEST, 79,23,13.0
         )
@@ -18,10 +18,8 @@ class UTMTest {
 
     @Test
     fun testFromLaLo2() {
-        val sec = LaLoMinute(
-                Hemisphere.NORTH, 41,36.359,
-                Hemisphere.EAST, 41 ,36.730
-        )
+        val sec = LaLo(MinuteLaPart(Hemisphere.NORTH, 41, 36.359), MinuteLoPart(Hemisphere.EAST, 41, 36.730
+        ))
         val laLoDegree = sec.toLaLoDegree()
         val actual = UTMFactory.fromLaLoDegree(laLoDegree)
 

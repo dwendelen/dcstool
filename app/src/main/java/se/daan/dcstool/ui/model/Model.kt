@@ -6,7 +6,7 @@ import se.daan.dcstool.model.*
 
 class Model : ViewModel() {
     var input: CharSequence = ""
-    var coordinate: LaLoDegree? = null
+    var coordinate: LaLo<DegreeLaPart, DegreeLoPart>? = null
 
     val addedFavorites: PublishSubject<Favorite> = PublishSubject.create()
 
@@ -37,4 +37,4 @@ val coordinateSystems = listOf(
 )
 
 data class CoordinateSystem(val name: CharSequence, val factory: CoordinateFactory<*>)
-data class Favorite(val name: CharSequence, val coordinate: LaLoDegree)
+data class Favorite(val name: CharSequence, val coordinate: LaLo<DegreeLaPart, DegreeLoPart>)

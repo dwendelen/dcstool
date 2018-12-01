@@ -15,9 +15,7 @@ import com.jakewharton.rxbinding2.widget.RxTextView
 import io.reactivex.Observable
 import io.reactivex.disposables.Disposable
 import io.reactivex.functions.BiFunction
-import se.daan.dcstool.model.Coordinate
-import se.daan.dcstool.model.CoordinateFactory
-import se.daan.dcstool.model.LaLoDegree
+import se.daan.dcstool.model.*
 import se.daan.dcstool.model.parser.Parser
 import se.daan.dcstool.ui.model.Model
 import java.util.*
@@ -72,17 +70,17 @@ class ConverterFragment : Fragment() {
         return view
     }
 
-    private fun addGroup(context: Context, input: Observable<Optional<LaLoDegree>>, spinner: Spinner, output: TextView): List<Disposable> {
+    private fun addGroup(context: Context, input: Observable<Optional<LaLo<DegreeLaPart, DegreeLoPart>>>, spinner: Spinner, output: TextView): List<Disposable> {
         val factory = CoordinateSystemDropdownBuilder.build(context, spinner)
 
-        val textDisposable = Observable.combineLatest(input, factory, BiFunction<Optional<LaLoDegree>, CoordinateFactory<*>, String> { inp, fac ->
+        val textDisposable = Observable.combineLatest(input, factory, BiFunction<Optional<LaLo<DegreeLaPart, DegreeLoPart>>, CoordinateFactory<*>, String> { inp, fac ->
             mapDegree(fac, inp)
         }).subscribe(output::setText)
 
         return listOf(textDisposable)
     }
 
-    private fun parse(input: CharSequence): Optional<LaLoDegree> {
+    private fun parse(input: CharSequence): Optional<LaLo<DegreeLaPart, DegreeLoPart>> {
         val coordinates = parser.parseChars(input)
 
         if (coordinates.size == 1) {
@@ -95,7 +93,7 @@ class ConverterFragment : Fragment() {
         }
     }
 
-    private fun mapDegree(factory: CoordinateFactory<*>, laLoDegree: Optional<LaLoDegree>): String {
+    private fun mapDegree(factory: CoordinateFactory<*>, laLoDegree: Optional<LaLo<DegreeLaPart, DegreeLoPart>>): String {
         return laLoDegree
                 .map(factory::fromLaLoDegree)
                 .map(Coordinate::print)
