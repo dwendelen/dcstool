@@ -94,22 +94,22 @@ class IntegrationTest {
 
         val fromFactory = factory.fromLaLoDegree(laLo)
         val printed = fromFactory.print()
+        val correctedForExtraSpaces = if(fromFactory is UTM || fromFactory is MGRS) printed else printed.filter { it != ' ' }
 
         val state = Parser().getCoordinateParser().getParseState()
         var lastResult = ParseResult(emptySet<Coordinate>(), false)
 
-        printed.forEach {
-            assertTrue(state.getAcceptedChars().contains(it))
+        correctedForExtraSpaces.forEach {
+            val acceptedChars = state.getAcceptedChars()
 
+            assertTrue(acceptedChars.contains(it))
             lastResult = state.onChar(it)
         }
 
         assertTrue(lastResult.result.size == 1)
         assertEquals(printed, lastResult.result.iterator().next().print())
 
-
-
-        val fullyParsedByParser = Parser().parseChars(printed)
+        val fullyParsedByParser = Parser().parseChars(correctedForExtraSpaces)
         assertTrue(fullyParsedByParser.size == 1)
         assertEquals(printed, fullyParsedByParser.iterator().next().print())
     }

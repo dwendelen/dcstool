@@ -11,19 +11,16 @@ class Parser {
         val state = getCoordinateParser().getParseState()
         var lastResult = ParseResult(emptySet<Coordinate>(), false)
 
-        println(state.getAcceptedChars()) //TODO REMOVE
         input.forEach {
             if (lastResult.done) {
                 return emptySet()
             }
 
-            println(it) //TODO REMOVE
             if (!state.getAcceptedChars().contains(it)) {
                 return emptySet()
             }
 
             lastResult = state.onChar(it)
-            println(state.getAcceptedChars()) //TODO REMOVE
         }
 
         return lastResult.result
