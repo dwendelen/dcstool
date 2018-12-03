@@ -18,8 +18,7 @@ class UTMTest {
 
     @Test
     fun testFromLaLo2() {
-        val sec = LaLo(MinuteLaPart(Hemisphere.NORTH, 41, 36.359), MinuteLoPart(Hemisphere.EAST, 41, 36.730
-        ))
+        val sec = LaLo(MinutePart(Hemisphere.NORTH, 41, 36.359, PartType.Latitude), MinutePart(Hemisphere.EAST, 41, 36.730, PartType.Longitude))
         val laLoDegree = sec.toLaLoDegree()
         val actual = UTMFactory.fromLaLoDegree(laLoDegree)
 

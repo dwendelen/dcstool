@@ -6,23 +6,23 @@ import kotlin.math.truncate
 
 interface LaLoPart {
     fun print(): String
+    fun toDegreePart(): DegreePart
 }
 
-interface LaPart : LaLoPart {
-    fun toDegreeLaPart(): DegreeLaPart
+enum class PartType(val format: String) {
+    Latitude("00"),
+    Longitude("000");
 }
 
-interface LoPart : LaLoPart {
-    fun toDegreeLoPart(): DegreeLoPart
-}
 
-data class LaLo<La : LaPart, Lo : LoPart>(
+
+data class LaLo<La : LaLoPart, Lo : LaLoPart>(
         val lat: La,
         val lon: Lo
 ) : Coordinate {
-    override fun toLaLoDegree(): LaLo<DegreeLaPart, DegreeLoPart> {
-        val latD = lat.toDegreeLaPart()
-        val lonD = lon.toDegreeLoPart()
+    override fun toLaLoDegree(): LaLoDegree {
+        val latD = lat.toDegreePart()
+        val lonD = lon.toDegreePart()
 
         return LaLo(latD, lonD)
     }

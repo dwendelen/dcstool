@@ -38,7 +38,7 @@ data class UTM
         }
     }
 
-    override fun toLaLoDegree(): LaLo<DegreeLaPart, DegreeLoPart> {
+    override fun toLaLoDegree(): LaLoDegree {
         val N0: Double = if (hemisphere == NORTH) 0.0 else 10000000.0
 
         val e = (northing - N0) / (k0 * A)
@@ -64,12 +64,12 @@ data class UTM
         val lat = abs(phi * 180 / PI)
         val lon = lonHemisphere.sign * delta * 180 / PI
 
-        return LaLo(DegreeLaPart(hemisphere, lat), DegreeLoPart(lonHemisphere, lon))
+        return LaLo(DegreePart(hemisphere, lat, PartType.Latitude), DegreePart(lonHemisphere, lon, PartType.Longitude))
     }
 }
 
 object UTMFactory : CoordinateFactory<UTM> {
-    override fun fromLaLoDegree(laLoDegree: LaLo<DegreeLaPart, DegreeLoPart>): UTM {
+    override fun fromLaLoDegree(laLoDegree: LaLoDegree): UTM {
         val lat = laLoDegree.lat.degree * laLoDegree.lat.hemi.sign
         val lon = laLoDegree.lon.degree * laLoDegree.lon.hemi.sign
 

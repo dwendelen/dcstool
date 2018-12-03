@@ -13,24 +13,24 @@ class LaLoMinuteTest {
     }
 
     fun test(latH: Hemisphere, latD: Int, latM: Double, lonH: Hemisphere, lonD: Int, lonM: Double, expected: String) {
-        val actual: Any = LaLo(MinuteLaPart(latH, latD, latM), MinuteLoPart(lonH, lonD, lonM)).print()
+        val actual: Any = LaLo(MinutePart(latH, latD, latM, PartType.Latitude), MinutePart(lonH, lonD, lonM, PartType.Longitude)).print()
         println(actual)
         assertEquals(expected, actual);
     }
 
     @Test
     fun testFromLaLoDegree() {
-        val laLoD = LaLo(DegreeLaPart(SOUTH, 0.5), DegreeLoPart(EAST, 11.9915))
+        val laLoD = LaLo(DegreePart(SOUTH, 0.5, PartType.Latitude), DegreePart(EAST, 11.9915, PartType.Longitude))
         val actual = LaLoMinuteFactory.fromLaLoDegree(laLoD)
         println(actual.print())
-        assertEquals(LaLo(MinuteLaPart(SOUTH, 0, 30.0), MinuteLoPart(EAST, 11, 59.49)).print(), actual.print())
+        assertEquals(LaLo(MinutePart(SOUTH, 0, 30.0, PartType.Latitude), MinutePart(EAST, 11, 59.49, PartType.Longitude)).print(), actual.print())
     }
 
     @Test
     fun testToLaLoDegree() {
-        val laLoM = LaLo(MinuteLaPart(SOUTH, 10, 30.0), MinuteLoPart(EAST, 0, 59.49))
+        val laLoM = LaLo(MinutePart(SOUTH, 10, 30.0, PartType.Latitude), MinutePart(EAST, 0, 59.49, PartType.Longitude))
         val actual = laLoM.toLaLoDegree()
         println(actual.print())
-        assertEquals(LaLo(DegreeLaPart(SOUTH, 10.5), DegreeLoPart(EAST, 0.9915)).print(), actual.print())
+        assertEquals(LaLo(DegreePart(SOUTH, 10.5, PartType.Latitude), DegreePart(EAST, 0.9915, PartType.Longitude)).print(), actual.print())
     }
 }

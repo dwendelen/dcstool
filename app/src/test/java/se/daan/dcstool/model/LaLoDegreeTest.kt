@@ -13,7 +13,7 @@ class LaLoDegreeTest {
     }
 
     fun test(latH: Hemisphere, latD: Double, lonH: Hemisphere, lonD: Double, expected: String) {
-        val actual: Any = LaLo(DegreeLaPart(latH, latD), DegreeLoPart(lonH, lonD)).print()
+        val actual: Any = LaLo(DegreePart(latH, latD, PartType.Latitude), DegreePart(lonH, lonD, PartType.Longitude)).print()
         println(actual)
         assertEquals(expected, actual);
     }

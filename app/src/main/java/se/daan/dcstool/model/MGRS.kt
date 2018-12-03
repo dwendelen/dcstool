@@ -13,7 +13,7 @@ data class MGRS
         val easting: Double,
         val northing: Double
 ) : Coordinate {
-    override fun toLaLoDegree(): LaLo<DegreeLaPart, DegreeLoPart> {
+    override fun toLaLoDegree(): LaLoDegree {
         return toUTM().toLaLoDegree()
     }
 
@@ -39,7 +39,7 @@ data class MGRS
 }
 
 object MGRSFactory : CoordinateFactory<MGRS> {
-    override fun fromLaLoDegree(laLoDegree: LaLo<DegreeLaPart, DegreeLoPart>): MGRS {
+    override fun fromLaLoDegree(laLoDegree: LaLoDegree): MGRS {
         return fromUTM(UTMFactory.fromLaLoDegree(laLoDegree))
     }
 

@@ -80,7 +80,7 @@ class Parser {
                 maybeSpace,
                 laLoDegPart(ew, int0_179)
         ) { lat, _, lon ->
-            LaLo(DegreeLaPart(lat.h, lat.d), DegreeLoPart(lon.h, lon.d))
+            LaLo(DegreePart(lat.h, lat.d, PartType.Latitude), DegreePart(lon.h, lon.d, PartType.Longitude))
         }
 
 
@@ -104,7 +104,7 @@ class Parser {
                 maybeSpace,
                 laLoMinPart(ew, int0_179)
         ) { lat, _, lon ->
-            LaLo(MinuteLaPart(lat.h, lat.d, lat.m), MinuteLoPart(lon.h, lon.d, lon.m))
+            LaLo(MinutePart(lat.h, lat.d, lat.m, PartType.Latitude), MinutePart(lon.h, lon.d, lon.m, PartType.Longitude))
         }
 
 

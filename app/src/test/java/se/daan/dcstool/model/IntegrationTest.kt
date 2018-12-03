@@ -77,7 +77,7 @@ class IntegrationTest {
 
 
     @Theory
-    fun testConversion(input: Pair<CoordinateFactory<*>, LaLo<SecondLaPart, SecondLoPart>>) {
+    fun testConversion(input: Pair<CoordinateFactory<*>, LaLo<SecondPart, SecondPart>>) {
         val factory = input.first
         val laLo = input.second.toLaLoDegree()
 
@@ -88,7 +88,7 @@ class IntegrationTest {
     }
 
     @Theory
-    fun testParsing(input: Pair<CoordinateFactory<*>, LaLo<SecondLaPart, SecondLoPart>>) {
+    fun testParsing(input: Pair<CoordinateFactory<*>, LaLo<SecondPart, SecondPart>>) {
         val factory = input.first
         val laLo = input.second.toLaLoDegree()
 

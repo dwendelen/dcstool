@@ -70,17 +70,17 @@ class ConverterFragment : Fragment() {
         return view
     }
 
-    private fun addGroup(context: Context, input: Observable<Optional<LaLo<DegreeLaPart, DegreeLoPart>>>, spinner: Spinner, output: TextView): List<Disposable> {
+    private fun addGroup(context: Context, input: Observable<Optional<LaLoDegree>>, spinner: Spinner, output: TextView): List<Disposable> {
         val factory = CoordinateSystemDropdownBuilder.build(context, spinner)
 
-        val textDisposable = Observable.combineLatest(input, factory, BiFunction<Optional<LaLo<DegreeLaPart, DegreeLoPart>>, CoordinateFactory<*>, String> { inp, fac ->
+        val textDisposable = Observable.combineLatest(input, factory, BiFunction<Optional<LaLoDegree>, CoordinateFactory<*>, String> { inp, fac ->
             mapDegree(fac, inp)
         }).subscribe(output::setText)
 
         return listOf(textDisposable)
     }
 
-    private fun parse(input: CharSequence): Optional<LaLo<DegreeLaPart, DegreeLoPart>> {
+    private fun parse(input: CharSequence): Optional<LaLoDegree> {
         val coordinates = parser.parseChars(input)
 
         if (coordinates.size == 1) {
@@ -93,7 +93,7 @@ class ConverterFragment : Fragment() {
         }
     }
 
-    private fun mapDegree(factory: CoordinateFactory<*>, laLoDegree: Optional<LaLo<DegreeLaPart, DegreeLoPart>>): String {
+    private fun mapDegree(factory: CoordinateFactory<*>, laLoDegree: Optional<LaLoDegree>): String {
         return laLoDegree
                 .map(factory::fromLaLoDegree)
                 .map(Coordinate::print)
