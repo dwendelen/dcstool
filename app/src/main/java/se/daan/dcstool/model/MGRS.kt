@@ -27,14 +27,14 @@ data class MGRS
         val e = decimalFormat.format(easting)
         val n = decimalFormat.format(northing)
 
-        return "$zone$latitudeBand ${columnLetter.name}${rowLetter.name} $e $n"
+        return "$zone${latitudeBand.name} ${columnLetter.name}${rowLetter.name} $e $n"
     }
 
     fun toUTM(): UTM {
         val e = columnLetter.toUTMEastingBase() + easting
         val n = latitudeBand.toUTMNorthingBase() + rowLetter.toUTMNorthingBase(zone) + northing
 
-        return UTM(latitudeBand.getHemisphere(), zone, latitudeBand, e.toDouble(), n.toDouble())
+        return UTM(latitudeBand.getHemisphere(), zone, latitudeBand, e, n)
     }
 }
 
@@ -85,10 +85,21 @@ enum class ColumnLetter {
     }
 
     companion object {
+        fun inZone(zone: Int): Collection<ColumnLetter> {
+            val base = baseIdx(zone)
+
+            return (base .. base + 7)
+                    .map { ColumnLetter.values().get(it) }
+        }
+
         fun fromZoneAndEasting(zone: Int, easting: Double): ColumnLetter {
-            val idx = ((zone - 1) % 3) * 8 + (easting / 100000.0).toInt() - 1
+            val idx = baseIdx(zone) + (easting / 100000.0).toInt() - 1
 
             return ColumnLetter.values().get(idx)
+        }
+
+        private fun baseIdx(zone: Int): Int {
+            return ((zone - 1) % 3) * 8
         }
     }
 }
@@ -116,20 +127,31 @@ enum class RowLetter {
     V;
 
     fun toUTMNorthingBase(zone: Int): Int {
-        val idx = if (zone % 2 == 1)
-            ordinal
-        else
-            (ordinal - 5) % RowLetter.values().size
+        val idxOffset = idxOffset(zone)
+        val idx = (ordinal - idxOffset) % RowLetter.values().size
 
         return idx * 100000
     }
 
     companion object {
+        fun inZoneAndLatitudeBand(zone: Int, latitudeBand: LatitudeBand): Collection<RowLetter> {
+            val idxOffset = idxOffset(zone)
+            val startIdx = latitudeBand.firstRow.ordinal + idxOffset
+            val lastIdx = latitudeBand.lastRow.ordinal + idxOffset
+
+            return (startIdx..lastIdx)
+                    .map { values()[it] }
+        }
+
         fun fromZoneAndNorthing(zone: Int, northing: Double): RowLetter {
-            val idxOffset = if (zone % 2 == 1) 0 else 5
+            val idxOffset = idxOffset(zone)
             val idx = (idxOffset + (northing / 100000.0).toInt()) % RowLetter.values().size
 
             return RowLetter.values().get(idx)
+        }
+
+        fun idxOffset(zone: Int): Int {
+            return if (zone % 2 == 1) 0 else 5
         }
     }
 }

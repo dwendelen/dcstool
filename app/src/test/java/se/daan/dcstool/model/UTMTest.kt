@@ -45,7 +45,4 @@ class UTMTest {
     fun testLatitudeBand() {
         assertEquals(LatitudeBand.T, LatitudeBand.getBandForLatitude(43.0))
     }
-
-
-
 }

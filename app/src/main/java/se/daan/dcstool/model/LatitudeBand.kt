@@ -1,28 +1,29 @@
 package se.daan.dcstool.model
 
 import kotlin.math.floor
+import se.daan.dcstool.model.RowLetter
 
-enum class LatitudeBand(val rowRepetition: Int) {
-    C(0),
-    D(1),
-    E(1),
-    F(1),
-    G(2),
-    H(2),
-    J(3),
-    K(3),
-    L(4),
-    M(4),
-    N(0),
-    P(0),
-    Q(0),
-    R(1),
-    S(1),
-    T(2),
-    U(2),
-    V(3),
-    W(3),
-    X(3);
+enum class LatitudeBand(val rowRepetition: Int, val firstRow: RowLetter, val lastRow: RowLetter) {
+    C(0, RowLetter.M, RowLetter.A),
+    D(1, RowLetter.A, RowLetter.J),
+    E(1, RowLetter.J, RowLetter.T),
+    F(1, RowLetter.T, RowLetter.G),
+    G(2, RowLetter.G, RowLetter.R),
+    H(2, RowLetter.R, RowLetter.E),
+    J(3, RowLetter.E, RowLetter.P),
+    K(3, RowLetter.P, RowLetter.C),
+    L(4, RowLetter.C, RowLetter.M),
+    M(4, RowLetter.M, RowLetter.V),
+    N(0, RowLetter.A, RowLetter.J),
+    P(0, RowLetter.J, RowLetter.T),
+    Q(0, RowLetter.T, RowLetter.G),
+    R(1, RowLetter.G, RowLetter.R),
+    S(1, RowLetter.R, RowLetter.E),
+    T(2, RowLetter.E, RowLetter.P),
+    U(2, RowLetter.P, RowLetter.C),
+    V(3, RowLetter.C, RowLetter.M),
+    W(3, RowLetter.M, RowLetter.V),
+    X(3, RowLetter.V, RowLetter.J);
 
     fun getHemisphere(): Hemisphere {
         if (ordinal < N.ordinal)

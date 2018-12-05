@@ -81,16 +81,10 @@ class ConverterFragment : Fragment() {
     }
 
     private fun parse(input: CharSequence): Optional<LaLoDegree> {
-        val coordinates = parser.parseChars(input)
+        val coordinate = parser.parseChars(input)
+        val laLo = coordinate?.toLaLoDegree()
 
-        if (coordinates.size == 1) {
-            return Optional.of(coordinates.iterator().next().toLaLoDegree())
-        } else {
-            if (coordinates.size > 1) {
-                println("Found multiple: $coordinates") //TODO Remove
-            }
-            return Optional.empty()
-        }
+        return Optional.ofNullable(laLo)
     }
 
     private fun mapDegree(factory: CoordinateFactory<*>, laLoDegree: Optional<LaLoDegree>): String {

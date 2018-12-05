@@ -1,782 +1,92 @@
 package se.daan.dcstool.model.parser
 
-import se.daan.dcstool.model.*
-
+import se.daan.dcstool.model.Coordinate
+import se.daan.dcstool.model.parser.lalodegree.newLaLoDegreeFormat
+import se.daan.dcstool.model.parser.lalominute.newLaLoMinuteFormat
+import se.daan.dcstool.model.parser.lalosecond.newLaLoSecondFormat
+import se.daan.dcstool.model.parser.mgrs.newMGRSFormat
 
 class Parser {
-    val composeNumber = { a: Int, b: Int -> 10 * a + b }
-    val composeNumber3 = { a: Int, b: Int, c: Int -> 100 * a + 10 * b + c }
-
-    fun parseChars(input: CharSequence): Set<Coordinate> {
-        val state = getCoordinateParser().getParseState()
-        var lastResult = ParseResult(emptySet<Coordinate>(), false)
-
-        input.forEach {
-            if (lastResult.done) {
-                return emptySet()
-            }
-
-            if (!state.getAcceptedChars().contains(it)) {
-                return emptySet()
-            }
-
-            lastResult = state.onChar(it)
-        }
-
-        return lastResult.result
-    }
-
-    fun getCoordinateParser(): Thing<Coordinate> {
-        val N = CharThing('N', Hemisphere.NORTH)
-        val S = CharThing('S', Hemisphere.SOUTH)
-        val E = CharThing('E', Hemisphere.EAST)
-        val W = CharThing('W', Hemisphere.WEST)
-        val ns = or(N, S)
-        val ew = or(E, W)
-
-        val degree = CharThing('°', null)
-        val minute = CharThing('\'', null)
-        val second = CharThing('"', null)
-
-        val space = CharThing(' ', null)
-        val maybeSpace = MaybeThing(space, null)
-
-        val int0_9 = DigitRange(0, 9)
-        val int0_59 = or(int0_9, DigitRange(0, 5).concat(int0_9, composeNumber))
-        val int0_179 =
-                OrThing(setOf(
-                        concatThing3(Digit(0), int0_9, int0_9, composeNumber3),
-                        concatThing3(Digit(1), DigitRange(0, 7), int0_9, composeNumber3),
-                        int0_9.concat(int0_9, composeNumber),
-                        int0_9
-                ))
-
-        val integer = StarThing(int0_9, 0, composeNumber)
-
-        fun toDecimal(int: Thing<Int>): Thing<Double> {
-            val afterComma =
-                    CharThing('.', null)
-                            .concat(StarThing(DigitRangeAsString(0, 9), "0.") { a, b -> a + b }) { _, a ->
-                                a.toDouble()
-                            }
-            return int.concat(MaybeThing(afterComma, 0.0)) { a, b -> a + b }
-        }
-
-        data class LaLoDegPart(val h: Hemisphere, val d: Double)
-
-        fun laLoDegPart(hemi: Thing<Hemisphere>, degreeRange: Thing<Int>): Thing<LaLoDegPart> {
-            return concatThing4(
-                    hemi,
-                    maybeSpace,
-                    toDecimal(degreeRange),
-                    MaybeThing(degree, null)
-            ) { h, _, d, _ ->
-                LaLoDegPart(h, d)
-            }
-        }
-
-        val laLoDegree = concatThing3(
-                laLoDegPart(ns, int0_59),
-                maybeSpace,
-                laLoDegPart(ew, int0_179)
-        ) { lat, _, lon ->
-            LaLo(DegreePart(lat.h, lat.d, PartType.Latitude), DegreePart(lon.h, lon.d, PartType.Longitude))
-        }
-
-
-        data class LaLoMinPart(val h: Hemisphere, val d: Int, val m: Double)
-
-        fun laLoMinPart(hemi: Thing<Hemisphere>, degreeRange: Thing<Int>): Thing<LaLoMinPart> {
-            return concatThing6(
-                    hemi,
-                    maybeSpace,
-                    degreeRange,
-                    or(degree, space),
-                    toDecimal(int0_59),
-                    MaybeThing(minute, null)
-            ) { h, _, d, _, m, _ ->
-                LaLoMinPart(h, d, m)
-            }
-        }
-
-        val laLoMinute = concatThing3(
-                laLoMinPart(ns, int0_59),
-                maybeSpace,
-                laLoMinPart(ew, int0_179)
-        ) { lat, _, lon ->
-            LaLo(MinutePart(lat.h, lat.d, lat.m, PartType.Latitude), MinutePart(lon.h, lon.d, lon.m, PartType.Longitude))
-        }
-
-
-        data class LaLoSecPart(val h: Hemisphere, val d: Int, val m: Int, val s: Int)
-
-        fun laLoSecPart(hemi: Thing<Hemisphere>, degreeRange: Thing<Int>): Thing<LaLoSecPart> {
-            return concatThing8(
-                    hemi,
-                    maybeSpace,
-                    degreeRange,
-                    or(degree, space),
-                    int0_59,
-                    or(minute, space),
-                    int0_59,
-                    MaybeThing(second, null)
-            ) { h, _, d, _, m, _, s, _ ->
-                LaLoSecPart(h, d, m, s)
-            }
-        }
-
-        val laLoSecond = concatThing3(
-                laLoSecPart(ns, int0_59),
-                maybeSpace,
-                laLoSecPart(ew, int0_179)
-        ) { lat, _, lon ->
-            laLoSecond(lat.h, lat.d, lat.m, lat.s.toDouble(), lon.h, lon.d, lon.m, lon.s.toDouble())
-        }
-
-
-        val zone =
-                OrThing(setOf(
-                        DigitRange(1, 9),
-                        DigitRange(1, 5).concat(int0_9, composeNumber),
-                        Digit(6).concat(Digit(0), composeNumber)
-                ))
-
-        val utm =
-                concatThing8(
-                        ns,
-                        maybeSpace,
-                        zone,
-                        MaybeThing(EnumValues(LatitudeBand.values()), null),
-                        maybeSpace,
-                        integer,
-                        space,
-                        integer
-                ) { h, _, z, l, _, e, _, n ->
-                    UTM(h, z, l, e.toDouble(), n.toDouble())
-                }
-
-
-        val mgrs =
-                concatThing9(
-                        zone,
-                        EnumValues(LatitudeBand.values()),
-                        maybeSpace,
-                        EnumValues(ColumnLetter.values()),
-                        EnumValues(RowLetter.values()),
-                        maybeSpace,
-                        integer,
-                        space,
-                        integer
-                ) { z, l, _, c, r, _, n, _, e -> MGRS(z, l, c, r, n.toDouble() + 0.5, e.toDouble() + 0.5) }
-
-        val result = OrThing(setOf(
-                laLoDegree,
-                laLoMinute,
-                laLoSecond,
-                utm,
-                mgrs
-        ))
-
-        return result.optimise()
-    }
-
-
-    fun <A, B, C, R> concatThing3(
-            a: Thing<A>,
-            b: Thing<B>,
-            c: Thing<C>,
-            fn: (A, B, C) -> R
-    ): Thing<R> {
-
-        val things =
-                ConcatThingListTerminator(c)
-                        .prepend(b)
-                        .prepend(a)
-
-        return ConcatThing(things) {
-            val aa = it.item
-            val bb = it.tail.item
-            val cc = it.tail.tail.item
-
-            fn(aa, bb, cc)
-        }
-    }
-
-    fun <A, B, C, D, E, F, R> concatThing6(
-            a: Thing<A>,
-            b: Thing<B>,
-            c: Thing<C>,
-            d: Thing<D>,
-            e: Thing<E>,
-            f: Thing<F>,
-            fn: (A, B, C, D, E, F) -> R
-    ): Thing<R> {
-
-        val things = ConcatThingListTerminator(f)
-                .prepend(e)
-                .prepend(d)
-                .prepend(c)
-                .prepend(b)
-                .prepend(a)
-
-        return ConcatThing(things) {
-            val aa = it.item
-            val bb = it.tail.item
-            val cc = it.tail.tail.item
-            val dd = it.tail.tail.tail.item
-            val ee = it.tail.tail.tail.tail.item
-            val ff = it.tail.tail.tail.tail.tail.item
-
-            fn(aa, bb, cc, dd, ee, ff)
-        }
-    }
-
-    fun <A, B, C, D, R> concatThing4(
-            a: Thing<A>,
-            b: Thing<B>,
-            c: Thing<C>,
-            d: Thing<D>,
-            fn: (A, B, C, D) -> R
-    ): Thing<R> {
-
-        val things = ConcatThingListTerminator(d)
-                .prepend(c)
-                .prepend(b)
-                .prepend(a)
-
-        return ConcatThing(things) {
-            val aa = it.item
-            val bb = it.tail.item
-            val cc = it.tail.tail.item
-            val dd = it.tail.tail.tail.item
-
-            fn(aa, bb, cc, dd)
-        }
-    }
-
-    fun <A, B, C, D, E, F, G, H, R> concatThing8(
-            a: Thing<A>,
-            b: Thing<B>,
-            c: Thing<C>,
-            d: Thing<D>,
-            e: Thing<E>,
-            f: Thing<F>,
-            g: Thing<G>,
-            h: Thing<H>,
-            fn: (A, B, C, D, E, F, G, H) -> R
-    ): Thing<R> {
-
-        val things = ConcatThingListTerminator(h)
-                .prepend(g)
-                .prepend(f)
-                .prepend(e)
-                .prepend(d)
-                .prepend(c)
-                .prepend(b)
-                .prepend(a)
-
-        return ConcatThing(things) {
-            val aa = it.item
-            val bb = it.tail.item
-            val cc = it.tail.tail.item
-            val dd = it.tail.tail.tail.item
-            val ee = it.tail.tail.tail.tail.item
-            val ff = it.tail.tail.tail.tail.tail.item
-            val gg = it.tail.tail.tail.tail.tail.tail.item
-            val hh = it.tail.tail.tail.tail.tail.tail.tail.item
-
-            fn(aa, bb, cc, dd, ee, ff, gg, hh)
-        }
-    }
-
-    fun <A, B, C, D, E, F, G, H, I, R> concatThing9(
-            a: Thing<A>,
-            b: Thing<B>,
-            c: Thing<C>,
-            d: Thing<D>,
-            e: Thing<E>,
-            f: Thing<F>,
-            g: Thing<G>,
-            h: Thing<H>,
-            i: Thing<I>,
-            fn: (A, B, C, D, E, F, G, H, I) -> R
-    ): Thing<R> {
-
-        val things = ConcatThingListTerminator(i)
-                .prepend(h)
-                .prepend(g)
-                .prepend(f)
-                .prepend(e)
-                .prepend(d)
-                .prepend(c)
-                .prepend(b)
-                .prepend(a)
-
-        return ConcatThing(things) {
-            val aa = it.item
-            val bb = it.tail.item
-            val cc = it.tail.tail.item
-            val dd = it.tail.tail.tail.item
-            val ee = it.tail.tail.tail.tail.item
-            val ff = it.tail.tail.tail.tail.tail.item
-            val gg = it.tail.tail.tail.tail.tail.tail.item
-            val hh = it.tail.tail.tail.tail.tail.tail.tail.item
-            val ii = it.tail.tail.tail.tail.tail.tail.tail.tail.item
-
-            fn(aa, bb, cc, dd, ee, ff, gg, hh, ii)
-        }
-    }
-
-
-    fun Digit(digit: Int): Thing<Int> {
-        return CharThing(digit.toString()[0], digit)
-    }
-
-    fun DigitRange(from: Int, to: Int): Thing<Int> {
-        val initial = Digit(from)
-
-        return (from + 1..to)
-                .fold(initial) { acc, d ->
-                    or(acc, Digit(d))
-                }
-    }
-
-    fun DigitAsString(digit: Int): Thing<String> {
-        val asString = digit.toString()
-
-        return CharThing(asString[0], asString)
-    }
-
-    fun DigitRangeAsString(from: Int, to: Int): Thing<String> {
-        val initial = DigitAsString(from)
-
-        return (from + 1..to)
-                .fold(initial) { acc, d ->
-                    or(acc, DigitAsString(d))
-                }
-    }
-
-    fun <E : Enum<E>> EnumValue(enumValue: E): Thing<E> {
-        return CharThing(enumValue.name[0], enumValue)
-    }
-
-    fun <E : Enum<E>> EnumValues(enumValues: Array<E>): Thing<E> {
-        val first = EnumValue(enumValues[0])
-
-        return enumValues.sliceArray(1..enumValues.size - 1)
-                .fold(first) { acc, e ->
-                    or(acc, EnumValue(e))
-                }
-    }
-}
-
-fun <A : S, B : S, S> or(a: Thing<A>, b: Thing<B>): Thing<S> {
-    return OrThing(setOf(a, b))
-}
-
-sealed class Thing<out T> {
-    fun <O, R> concat(second: Thing<O>, f: (T, O) -> R): Thing<R> {
-        val list = ConcatThingNode(this,
-                ConcatThingListTerminator(second)
+    fun newState(): ParserState {
+        val formats = listOf(
+                newLaLoDegreeFormat() as Piece<Input, *>,
+                newLaLoMinuteFormat() as Piece<Input, *>,
+                newLaLoSecondFormat() as Piece<Input, *>,
+                newMGRSFormat() as Piece<Input, *>
         )
-        return ConcatThing(list) { f(it.item, it.tail.item) }
+        return ParserState(formats, "")
     }
 
-    abstract fun getParseState(): ParseState<T>
+    fun parseChars(chars: CharSequence): Coordinate? {
+        var state = newState()
 
-    open fun getInitialValue(): Set<T>? {
-        return null
-    }
+        chars.forEach {
+            val nextState = oneIteration(state, it)
 
-    abstract fun optimise(): Thing<T>
-}
-
-interface ParseState<out T> {
-    fun getAcceptedChars(): Set<Char>
-    fun onChar(char: Char): ParseResult<T>
-    fun canSkip(): Boolean
-}
-
-data class ParseResult<out T>(val result: Set<T>, val done: Boolean) {
-    fun <O> map(fn: (T) -> O): ParseResult<O> {
-        return ParseResult(result.map(fn).toSet(), done)
-    }
-}
-
-data class CharThing<T>(
-        val char: Char,
-        val result: T
-) : Thing<T>() {
-    override fun getParseState(): ParseState<T> {
-        return object : ParseState<T> {
-            override fun getAcceptedChars(): Set<Char> {
-                return setOf(char)
-            }
-
-            override fun onChar(char: Char): ParseResult<T> {
-                return ParseResult(setOf(result), true)
-            }
-
-            override fun canSkip(): Boolean {
-                return false
-            }
-        }
-    }
-
-    override fun optimise(): Thing<T> {
-        return this
-    }
-}
-
-data class MaybeThing<E>(
-        val element: Thing<E>,
-        val initial: E
-) : Thing<E>() {
-    override fun getParseState(): ParseState<E> {
-        return object : ParseState<E> {
-            val state = element.getParseState()
-
-            override fun getAcceptedChars(): Set<Char> {
-                return state.getAcceptedChars()
-            }
-
-            override fun onChar(char: Char): ParseResult<E> {
-                return state.onChar(char)
-            }
-
-            override fun canSkip(): Boolean {
-                return true
-            }
-        }
-    }
-
-    override fun getInitialValue(): Set<E>? {
-        return setOf(initial)
-    }
-
-    override fun optimise(): Thing<E> {
-        return MaybeThing(element.optimise(), initial)
-    }
-}
-
-data class MapThing<O, T>(
-        val thing: Thing<O>,
-        val fn: (O) -> T
-) : Thing<T>() {
-    override fun getParseState(): ParseState<T> {
-        return object : ParseState<T> {
-            val state = thing.getParseState()
-
-            override fun getAcceptedChars(): Set<Char> {
-                return state.getAcceptedChars()
-            }
-
-            override fun onChar(char: Char): ParseResult<T> {
-                return state.onChar(char)
-                        .map(fn)
-            }
-
-            override fun canSkip(): Boolean {
-                return state.canSkip()
-            }
-        }
-    }
-
-    override fun optimise(): Thing<T> {
-        return MapThing(thing.optimise(), fn)
-    }
-}
-
-data class OrThing<T>(
-        val things: Set<Thing<T>>
-) : Thing<T>() {
-    override fun getParseState(): ParseState<T> {
-        return object : ParseState<T> {
-            val states = things.map { OrState(it.getParseState(), false) }
-
-            override fun getAcceptedChars(): Set<Char> {
-                return states.fold(setOf()) { s1, state ->
-                    s1.union(state.getAcceptedChars())
-                }
-            }
-
-            override fun onChar(char: Char): ParseResult<T> {
-                val fold = states.fold(setOf<T>()) { data, state ->
-                    data.union(state.onChar(char))
-                }
-
-                return ParseResult(fold, states.all { it.done })
-            }
-
-            override fun canSkip(): Boolean {
-                return states.any { it.canSkip() }
-            }
-        }
-    }
-
-    override fun optimise(): Thing<T> {
-        val optimisedThings = things.map { it.optimise() }
-
-        val newThings = optimisedThings.fold(emptySet()) { newThings: Set<Thing<T>>, thing: Thing<T> ->
-            when (thing) {
-                is OrThing -> newThings + thing.things
-                else -> newThings + thing
-            }
-        }
-
-        return OrThing(newThings)
-    }
-}
-
-data class OrState<out T>(val state: ParseState<T>, var done: Boolean) {
-    fun getAcceptedChars(): Set<Char> {
-        return if (done) {
-            emptySet()
-        } else {
-            state.getAcceptedChars()
-        }
-    }
-
-    fun onChar(char: Char): Set<T> {
-        return if (done) {
-            emptySet()
-        } else {
-            if (!state.getAcceptedChars().contains(char)) {
-                done = true
-                emptySet()
+            if(nextState == null) {
+                return null
             } else {
-                val result = state.onChar(char)
-                done = result.done
-
-                result.result
+                state = nextState
             }
         }
+
+        return state.coordinate
     }
 
-    fun canSkip(): Boolean {
-        return done || state.canSkip()
-    }
-}
+    private fun oneIteration(state: ParserState, char: Char): ParserState? {
+        val input = state.inputs.find {
+            char == it.charToDisplay
+        }
 
-data class ConcatThing<R, RL : ResultList>(
-        val things: ConcatThingList<RL>,
-        val fn: (RL) -> R
-) : Thing<R>() {
-    override fun getParseState(): ParseState<R> {
-        return object : ParseState<R> {
-            val list = things.createList()
-
-            override fun getAcceptedChars(): Set<Char> {
-                return list.acceptedChars()
-            }
-
-            override fun onChar(char: Char): ParseResult<R> {
-                return list.onChar(char).map { fn(it) }
-            }
-
-            override fun canSkip(): Boolean {
-                return list.canSkip()
-            }
+        return input?.let {
+            state.handle(it)
         }
     }
-
-    override fun optimise(): Thing<R> {
-        return ConcatThing(things.optimise(), fn)
-    }
 }
 
-sealed class ConcatThingList<RL : ResultList> {
-    abstract fun createList(): ConcatList<RL>
-    abstract fun optimise(): ConcatThingList<RL>
-
-    fun <O> prepend(other: Thing<O>): ConcatThingNode<O, RL> {
-        return ConcatThingNode(other, this)
-    }
-}
-
-data class ConcatThingListTerminator<R>(val thing: Thing<R>) : ConcatThingList<ResultTerminal<R>>() {
-    override fun createList(): ConcatListTerminator<R> {
-        return ConcatListTerminator(thing.getParseState(), thing.getInitialValue())
-    }
-
-    override fun optimise(): ConcatThingList<ResultTerminal<R>> {
-        return ConcatThingListTerminator(thing.optimise())
-    }
-}
-
-data class ConcatThingNode<E, RL : ResultList>(
-        val thing: Thing<E>,
-        val tail: ConcatThingList<RL>
-) : ConcatThingList<ResultNode<E, RL>>() {
-    override fun createList(): ConcatList<ResultNode<E, RL>> {
-        val initial = thing.getInitialValue()
-
-        return ConcatListNode(thing.getParseState(), initial, false, tail.createList())
-    }
-
-    override fun optimise(): ConcatThingList<ResultNode<E, RL>> {
-        return ConcatThingNode(thing.optimise(), tail.optimise())
-    }
-}
-
-sealed class ResultList
-data class ResultTerminal<R>(val item: R) : ResultList()
-data class ResultNode<R, L : ResultList>(val item: R, val tail: L) : ResultList()
-
-sealed class ConcatList<RL : ResultList> {
-    abstract fun acceptedChars(): Set<Char>
-    abstract fun onChar(char: Char): ParseResult<RL>
-    abstract fun canSkip(): Boolean
-    abstract fun getInitialValue(): Set<RL>?
-}
-
-class ConcatListTerminator<E>(val state: ParseState<E>, val initial: Set<E>?) : ConcatList<ResultTerminal<E>>() {
-    override fun getInitialValue(): Set<ResultTerminal<E>>? {
-        return initial?.map { ResultTerminal(it) }?.toSet()
-    }
-
-    override fun canSkip(): Boolean {
-        return state.canSkip()
-    }
-
-    override fun acceptedChars(): Set<Char> {
-        return state.getAcceptedChars()
-    }
-
-    override fun onChar(char: Char): ParseResult<ResultTerminal<E>> {
-        return state
-                .onChar(char)
-                .map { ResultTerminal(it) }
-    }
-}
-
-class ConcatListNode<E, LR : ResultList>(
-        val state: ParseState<E>,
-        val initial: Set<E>?,
-        var done: Boolean,
-        val tail: ConcatList<LR>
-) : ConcatList<ResultNode<E, LR>>() {
-    var lastResult: Set<E> = initial ?: emptySet()
-
-    override fun getInitialValue(): Set<ResultNode<E, LR>>? {
-        val tailInit = tail.getInitialValue()
-
-        return if (initial != null && tailInit != null) {
-            cross(initial, tailInit)
-                    .map { pair -> ResultNode(pair.first, pair.second) }
+data class ParserState(
+        val validFormats: List<Piece<Input, *>>,
+        val string: String
+) {
+    val inputs: Collection<Input>
+        get() {
+            return validFormats
+                    .flatMap { it.inputs }
                     .toSet()
-        } else {
-            null
         }
-    }
 
-    override fun acceptedChars(): Set<Char> {
-        return if (done) {
-            tail.acceptedChars()
-        } else {
-            val acceptedChars = state.getAcceptedChars()
-
-            if (state.canSkip()) {
-                val otherChars = tail.acceptedChars()
-                otherChars.union(acceptedChars)
-            } else {
-                acceptedChars
-            }
-        }
-    }
-
-    override fun onChar(char: Char): ParseResult<ResultNode<E, LR>> {
-        return if (done) {
-            onCharOnTail(char)
-        } else {
-            if (!state.getAcceptedChars().contains(char)) {
-                done = true
-
-                onCharOnTail(char)
-            } else {
-                val result = state.onChar(char)
-                lastResult = result.result
-                if (result.done) {
-                    done = true
+    fun handle(input: Input): ParserState {
+        val newStates = validFormats
+                .flatMap {
+                    if (it.inputs.contains(input)) {
+                        setOf(it.handle(input) as Piece<Input, *>)
+                    } else {
+                        emptySet()
+                    }
                 }
 
-                val tailInit = tail.getInitialValue()
+        return ParserState(newStates, string + input.charToDisplay)
+    }
 
-                if (tailInit == null) {
-                    ParseResult(emptySet(), false)
+    fun print(): CharSequence {
+        return if (validFormats.size == 1) {
+            validFormats[0].print()
+        } else {
+            "${string}_ (${validFormats.size})"
+        }
+    }
+
+    val coordinate: Coordinate?
+        get() =
+            if (validFormats.size == 1) {
+                val format = validFormats[0]
+
+                if (format is FinalFormat) {
+                    format.coordinate
                 } else {
-                    ParseResult(
-                            cross(lastResult, tailInit)
-                                    .map { pair -> ResultNode(pair.first, pair.second) }
-                                    .toSet(),
-                            false
-                    )
+                    null
                 }
+            } else {
+                null
             }
-        }
-    }
-
-    private fun onCharOnTail(char: Char): ParseResult<ResultNode<E, LR>> {
-        val tailResult = tail.onChar(char)
-
-        val result = cross(lastResult, tailResult.result)
-                .map { pair -> ResultNode(pair.first, pair.second) }
-                .toSet()
-
-        return ParseResult(result, tailResult.done)
-    }
-
-    override fun canSkip(): Boolean {
-        return if (state.canSkip()) {
-            tail.canSkip()
-        } else {
-            false
-        }
-    }
-}
-
-fun <A, B> cross(first: Set<A>, second: Set<B>): List<Pair<A, B>> {
-    return first.flatMap { a -> second.map { b -> Pair(a, b) } }
-}
-
-data class StarThing<T>(
-        val element: Thing<T>,
-        val initial: T,
-        val f: (T, T) -> T
-) : Thing<T>() {
-    override fun getParseState(): ParseState<T> {
-        return object : ParseState<T> {
-            var state = element.getParseState()
-            var result = setOf(initial)
-
-            override fun getAcceptedChars(): Set<Char> {
-                return state.getAcceptedChars()
-            }
-
-            override fun onChar(char: Char): ParseResult<T> {
-                val fromState = state.onChar(char)
-                result = cross(result, fromState.result)
-                        .map { pair -> f(pair.first, pair.second) }
-                        .toSet()
-
-                if (fromState.done) {
-                    state = element.getParseState()
-                }
-
-                return ParseResult(result, false)
-            }
-
-            override fun canSkip(): Boolean {
-                return true
-            }
-        }
-    }
-
-    override fun getInitialValue(): Set<T>? {
-        return setOf(initial)
-    }
-
-    override fun optimise(): Thing<T> {
-        return StarThing(element.optimise(), initial, f)
-    }
 }
