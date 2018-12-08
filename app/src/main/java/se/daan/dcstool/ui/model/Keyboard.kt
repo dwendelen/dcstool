@@ -70,7 +70,17 @@ fun getKeyboards(inputs: Collection<Input>): List<Keyboard> {
         keyboards.add(createLetterKeyboard(gridInputs))
     }
 
-    return keyboards
+    return if (keyboards.isEmpty()) {
+        listOf(emptyKeyboard())
+    } else {
+        keyboards
+    }
+}
+
+fun emptyKeyboard(): Keyboard {
+    return Keyboard(listOf(
+            Row(listOf(ModeKey, EmptyKey, EmptyKey, BackKey))
+    ))
 }
 
 fun createDigitKeyboard(

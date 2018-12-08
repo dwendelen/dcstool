@@ -8,7 +8,7 @@ import se.daan.dcstool.model.parser.ParserState
 import java.util.*
 
 class Model : ViewModel() {
-    var stack: Queue<ParserState> = LinkedList<ParserState>(listOf(Parser.newState()))
+    var stack: Deque<ParserState> = LinkedList<ParserState>(listOf(Parser.newState()))
 
     val parserState: ParserState get() {
         return stack.peek()

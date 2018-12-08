@@ -105,7 +105,7 @@ class IntegrationTest {
                     it != '°'
         }
 
-        var state = Parser().newState()
+        var state = Parser.newState()
 
         withoutSymbols.forEach {
             val acceptedChars = state.inputs.map { it.charToDisplay }
@@ -118,7 +118,7 @@ class IntegrationTest {
         assertNotNull(state.coordinate)
         assertEquals(printed, state.coordinate!!.print())
 
-        val fullyParsedByParser = Parser().parseChars(withoutSymbols)
+        val fullyParsedByParser = Parser.parseChars(withoutSymbols)
         assertNotNull(fullyParsedByParser)
         assertEquals(printed, fullyParsedByParser!!.print())
     }

@@ -11,7 +11,6 @@ import android.view.ViewGroup
 import android.widget.*
 import com.jakewharton.rxbinding2.view.RxView
 import io.reactivex.Observable
-import io.reactivex.Observer
 import io.reactivex.disposables.Disposable
 import io.reactivex.functions.BiFunction
 import io.reactivex.subjects.PublishSubject
@@ -36,13 +35,9 @@ class ConverterFragment2 : Fragment() {
         val button: Button = view.findViewById(R.id.save_button22)
 
         val model: Model = ViewModelProviders.of(activity!!).get(Model::class.java)
-        val states = createStateEngine(view.context, keyboard, model.stack)
-        /*val modelSubscription =
-                keys.subscribe { state ->
-                    model.parserState = state
-                }*/
+        val states = getStates(view.context, keyboard, model)
 
-        //val outputSubscription = connectOutputs(view.context, keys, input, spinner1, output1)
+        val outputSubscriptions = connectOutputs(view.context, states, input, spinner1, output1)
 
         val buttonSubscription =
                 RxView.clicks(button)
@@ -53,7 +48,7 @@ class ConverterFragment2 : Fragment() {
                             saveDialog.show(fragmentManager, "save_dialog")
                         }
 
-        //subscriptions = listOf(outputSubscription, listOf(modelSubscription, buttonSubscription)).flatten()
+        subscriptions = listOf(outputSubscriptions, listOf(buttonSubscription)).flatten()
 
         return view
     }
@@ -67,9 +62,13 @@ class ConverterFragment2 : Fragment() {
     ): List<Disposable> {
         val factory = CoordinateSystemDropdownBuilder.build(context, spinner)
 
-        val inputSubscription = states.subscribe { state ->
+        val inputSubscription = states.subscribe( { state ->
             input.text = state.print()
-        }
+        }, {
+            it.printStackTrace()
+        }, {
+            println ("comp")
+        })
 
         val outputSubscription = Observable.combineLatest(states, factory, BiFunction<ParserState, CoordinateFactory<*>, String> { inp, fac ->
             mapDegree(fac, inp)
@@ -87,50 +86,56 @@ class ConverterFragment2 : Fragment() {
                 .orElse("")
     }
 
-    private fun createStateEngine(
+    private fun getStates(
             context: Context,
-            keyboard: TableLayout,
-            initialStates: Queue<ParserState>
-    ): Observable<ParserState> {
-        val publish = PublishSubject.create<ParserState>()
-        val replay = publish.replay(1)
+            table: TableLayout,
+            model: Model
+    ):  Observable<ParserState> {
+        val state = model.parserState
+        val inputs = state.inputs
+        val keyboards = getKeyboards(inputs)
+        val idx = 0
 
-        var previousDisposable: Disposable? = null
-        var keyboards = emptyList<Keyboard>()
-        var idx = 0
-
-        replay.subscribe { newState ->
-            previousDisposable?.dispose()
-
-            val inputs = initialState.inputs
-            keyboards = getKeyboards(inputs)
-            idx = 0
-
-            val keys = renderKeyboard(
-                    context,
-                    keyboard,
-                    keyboards[idx],
-                    keyboards.size <= 1,
-                    true
-            )
-
-            previousDisposable = keys.subscribe { key ->
-                when(key) {
-                    is InputKey -> {
-                        val newNewState = newState.handle(key.input)
-                        publish.onNext(newNewState)
+        val next = getKeys(context, table, keyboards, idx, model.stack.size <= 1)
+                .flatMap {
+                    when(it) {
+                        is BackKey -> model.stack.remove()
+                        is InputKey -> {
+                            val newState = state.handle(it.input)
+                            model.stack.addFirst(newState)
+                        }
                     }
-                    is ModeKey -> {
-                        idx = (idx + 1)%keyboards.size
-                    }
+
+                    getStates(context, table, model)
                 }
-            }
-        }
+                .share()
 
-
-        return replay
+        return Observable.concat(
+                Observable.fromArray(state),
+                next
+        )
     }
 
+    private fun getKeys(
+            context: Context,
+            table: TableLayout,
+            keyboards: List<Keyboard>,
+            idx: Int,
+            disableBack: Boolean
+    ): Observable<Key> {
+        val disableMode = keyboards.size <= 1
+        val keyboard = keyboards[idx]
+        val keys = renderKeyboard(context, table, keyboard, disableMode, disableBack)
+
+        return keys.flatMap { key ->
+            if(key is ModeKey) {
+                val newIdx = (idx + 1)%keyboards.size
+                getKeys(context, table, keyboards, newIdx, disableBack)
+            } else {
+                Observable.fromArray(key)
+            }
+        }
+    }
 
     private fun renderKeyboard(
             context: Context,
