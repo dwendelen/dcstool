@@ -3,19 +3,36 @@ package se.daan.dcstool.ui.model;
 import android.arch.lifecycle.ViewModel
 import io.reactivex.subjects.PublishSubject
 import se.daan.dcstool.model.*
+import se.daan.dcstool.model.parser.Parser
+import se.daan.dcstool.model.parser.ParserState
+import java.util.*
 
 class Model : ViewModel() {
-    var input: CharSequence = ""
-    var coordinate: LaLoDegree? = null
+    var stack: Queue<ParserState> = LinkedList<ParserState>(listOf(Parser.newState()))
+
+    val parserState: ParserState get() {
+        return stack.peek()
+    }
+
+    var input: CharSequence = "" //TODO DEPRECATED
+    var coordinate: LaLoDegree? = null //TODO DEPRECATED
 
     val addedFavorites: PublishSubject<Favorite> = PublishSubject.create()
 
     val favorites: MutableList<Favorite> = arrayListOf()
     var favoriteFactory: CoordinateFactory<*> = coordinateSystems[defaultCoordinateSystemIdx].factory
 
-    fun saveCoordinate(name: CharSequence) {
+    fun saveCoordinate(name: CharSequence) { //TODO DEPRECATED
         coordinate?.let {
             val favorite = Favorite(name, it)
+            favorites.add(favorite)
+            addedFavorites.onNext(favorite)
+        }
+    }
+
+    fun saveCoordinate2(name: CharSequence) {
+        parserState.coordinate?.let {
+            val favorite = Favorite(name, it.toLaLoDegree())
             favorites.add(favorite)
             addedFavorites.onNext(favorite)
         }
@@ -26,7 +43,8 @@ const val defaultCoordinateSystemIdx = 5
 val coordinateSystems = listOf(
         CoordinateSystem("AJS-37", LaLoSecondFactory),
         CoordinateSystem("M-2000C", LaLoMinuteFactory),
-        CoordinateSystem("F/A-18C", LaLoMinuteFactory),
+        CoordinateSystem("F/A-18C in", LaLoSecondFactory),
+        CoordinateSystem("F/A-18C out", LaLoMinuteFactory),
         CoordinateSystem("A-10C LaLo", LaLoMinuteFactory),
         CoordinateSystem("A-10C MGRS", MGRSFactory),
         CoordinateSystem("La Lo degrees", LaLoDegreeFactory),

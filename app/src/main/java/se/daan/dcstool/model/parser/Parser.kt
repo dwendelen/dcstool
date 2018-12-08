@@ -6,7 +6,7 @@ import se.daan.dcstool.model.parser.lalominute.newLaLoMinuteFormat
 import se.daan.dcstool.model.parser.lalosecond.newLaLoSecondFormat
 import se.daan.dcstool.model.parser.mgrs.newMGRSFormat
 
-class Parser {
+object Parser {
     fun newState(): ParserState {
         val formats = listOf(
                 newLaLoDegreeFormat() as Piece<Input, *>,

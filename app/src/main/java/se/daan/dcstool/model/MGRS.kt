@@ -34,7 +34,7 @@ data class MGRS
         val e = columnLetter.toUTMEastingBase() + easting
         val n = latitudeBand.toUTMNorthingBase() + rowLetter.toUTMNorthingBase(zone) + northing
 
-        return UTM(latitudeBand.getHemisphere(), zone, latitudeBand, e, n)
+        return UTM(latitudeBand.hemisphere, zone, latitudeBand, e, n)
     }
 }
 

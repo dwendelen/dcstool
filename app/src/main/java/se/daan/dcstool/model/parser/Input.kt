@@ -23,12 +23,14 @@ data class LatitudeBandInput(val latitudeBand: LatitudeBand): Input() {
         get() = latitudeBand.name[0]
 }
 
-data class RowLetterInput(val rowLetter: RowLetter): Input() {
+abstract class GridInput: Input()
+
+data class RowLetterInput(val rowLetter: RowLetter): GridInput() {
     override val charToDisplay: Char
         get() = rowLetter.name[0]
 }
 
-data class ColumnLetterInput(val columnLetter: ColumnLetter): Input() {
+data class ColumnLetterInput(val columnLetter: ColumnLetter): GridInput() {
     override val charToDisplay: Char
         get() = columnLetter.name[0]
 }

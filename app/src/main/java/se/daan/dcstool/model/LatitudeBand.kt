@@ -1,7 +1,6 @@
 package se.daan.dcstool.model
 
 import kotlin.math.floor
-import se.daan.dcstool.model.RowLetter
 
 enum class LatitudeBand(val rowRepetition: Int, val firstRow: RowLetter, val lastRow: RowLetter) {
     C(0, RowLetter.M, RowLetter.A),
@@ -25,12 +24,12 @@ enum class LatitudeBand(val rowRepetition: Int, val firstRow: RowLetter, val las
     W(3, RowLetter.M, RowLetter.V),
     X(3, RowLetter.V, RowLetter.J);
 
-    fun getHemisphere(): Hemisphere {
-        if (ordinal < N.ordinal)
-            return Hemisphere.SOUTH
-        else
-            return Hemisphere.NORTH
-    }
+    val hemisphere: Hemisphere
+        get() =
+            if (ordinal < N.ordinal)
+                Hemisphere.SOUTH
+            else
+                Hemisphere.NORTH
 
     fun toUTMNorthingBase(): Int {
         return rowRepetition * 2000000

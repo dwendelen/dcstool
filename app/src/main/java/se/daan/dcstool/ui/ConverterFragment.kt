@@ -23,7 +23,6 @@ import java.util.*
 
 class ConverterFragment : Fragment() {
     private var subscriptions: List<Disposable> = emptyList()
-    private val parser = Parser()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
@@ -81,7 +80,7 @@ class ConverterFragment : Fragment() {
     }
 
     private fun parse(input: CharSequence): Optional<LaLoDegree> {
-        val coordinate = parser.parseChars(input)
+        val coordinate = Parser.parseChars(input)
         val laLo = coordinate?.toLaLoDegree()
 
         return Optional.ofNullable(laLo)
