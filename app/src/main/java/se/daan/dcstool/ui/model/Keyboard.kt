@@ -101,14 +101,14 @@ fun createDigitKeyboard(
     val hemi1 = inputToKey(hemis, 0)
     val hemi2 = inputToKey(hemis, 1)
 
-    val row1 = num1 + hemi1
-    val row2 = num2 + hemi2
-    val row3 = num3 + EmptyKey
+    val row1 = listOf(hemi1) + num1
+    val row2 = listOf(hemi2) + num2
+    val row3 = listOf(BackKey) + num3
     val row4 = listOf(
             ModeKey,
             digitToKey(digits, '0'),
-            digitToKey(digits, '.'),
-            BackKey
+            digitToKey(digits, '0'),
+            digitToKey(digits, '.')
     )
 
     return Keyboard(listOf(

@@ -23,6 +23,7 @@ import java.util.*
 
 class ConverterFragment2 : Fragment() {
     private var subscriptions: List<Disposable> = emptyList()
+    private var keySubscriptions: List<Disposable> = emptyList()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
@@ -31,11 +32,10 @@ class ConverterFragment2 : Fragment() {
         val input: TextView = view.findViewById(R.id.input22)
         val spinner1: Spinner = view.findViewById(R.id.spinner22)
         val output1: TextView = view.findViewById(R.id.output22)
-        val keyboard: TableLayout = view.findViewById(R.id.keyboard22)
         val button: Button = view.findViewById(R.id.save_button22)
 
         val model: Model = ViewModelProviders.of(activity!!).get(Model::class.java)
-        val states = getStates(view.context, keyboard, model)
+        val states = getStates(view, model)
 
         val outputSubscriptions = connectOutputs(view.context, states, input, spinner1, output1)
 
@@ -66,8 +66,6 @@ class ConverterFragment2 : Fragment() {
             input.text = state.print()
         }, {
             it.printStackTrace()
-        }, {
-            println ("comp")
         })
 
         val outputSubscription = Observable.combineLatest(states, factory, BiFunction<ParserState, CoordinateFactory<*>, String> { inp, fac ->
@@ -87,160 +85,148 @@ class ConverterFragment2 : Fragment() {
     }
 
     private fun getStates(
-            context: Context,
-            table: TableLayout,
+            view: View,
             model: Model
     ):  Observable<ParserState> {
+        val subject = PublishSubject.create<ParserState>()
+
+
+        var onKeyPressed : (Key) -> Unit = {}
+        onKeyPressed = { key ->
+            when(key) {
+                is BackKey -> model.stack.remove()
+                is InputKey -> {
+                    val newState = model.parserState.handle(key.input)
+                    model.stack.addFirst(newState)
+                }
+            }
+
+            renderKeyboards(view, model, onKeyPressed)
+            subject.onNext(model.parserState)
+        }
+
+        renderKeyboards(view, model, onKeyPressed)
+
+        val replay = subject.replay(1)
+        replay.connect()
+        subject.onNext(model.parserState)
+        return replay
+    }
+
+    private fun renderKeyboards(
+            view: View,
+            model: Model,
+            onKeyPressed: (Key) -> Unit
+    ) {
         val state = model.parserState
         val inputs = state.inputs
         val keyboards = getKeyboards(inputs)
         val idx = 0
 
-        val next = getKeys(context, table, keyboards, idx, model.stack.size <= 1)
-                .flatMap {
-                    when(it) {
-                        is BackKey -> model.stack.remove()
-                        is InputKey -> {
-                            val newState = state.handle(it.input)
-                            model.stack.addFirst(newState)
-                        }
-                    }
+        val disableBack = model.stack.size <= 1
 
-                    getStates(context, table, model)
-                }
-                .share()
-
-        return Observable.concat(
-                Observable.fromArray(state),
-                next
-        )
+        renderKeyboards(view, keyboards, idx, disableBack, onKeyPressed)
     }
 
-    private fun getKeys(
-            context: Context,
-            table: TableLayout,
+    private fun renderKeyboards(
+            view: View,
             keyboards: List<Keyboard>,
             idx: Int,
-            disableBack: Boolean
-    ): Observable<Key> {
+            disableBack: Boolean,
+            onKeyPressed: (Key) -> Unit
+    ) {
         val disableMode = keyboards.size <= 1
         val keyboard = keyboards[idx]
-        val keys = renderKeyboard(context, table, keyboard, disableMode, disableBack)
 
-        return keys.flatMap { key ->
+        val myOnKeyPressed: (Key) -> Unit = { key ->
+            keySubscriptions.forEach { it.dispose() }
+
             if(key is ModeKey) {
                 val newIdx = (idx + 1)%keyboards.size
-                getKeys(context, table, keyboards, newIdx, disableBack)
+                renderKeyboards(view, keyboards, newIdx, disableBack, onKeyPressed)
             } else {
-                Observable.fromArray(key)
+                onKeyPressed(key)
             }
         }
+
+        keySubscriptions = renderKeyboard(view, keyboard, disableMode, disableBack, myOnKeyPressed)
     }
 
     private fun renderKeyboard(
-            context: Context,
-            table: TableLayout,
+            view: View,
             keyboard: Keyboard,
             disableMode: Boolean,
-            disableBack: Boolean
-    ): Observable<Key> {
-        table.removeAllViews()
+            disableBack: Boolean,
+            onKeyPressed: (Key) -> Unit
+    ): List<Disposable> {
+        return listOfNotNull(
+                renderKey(view, R.id.key11, keyboard, 0, 0, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key12, keyboard, 0, 1, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key13, keyboard, 0, 2, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key14, keyboard, 0, 3, disableMode, disableBack, onKeyPressed),
 
-        val tableRows = keyboard.rows
-                .map {
-                    renderRow(
-                            context,
-                            it,
-                            disableMode,
-                            disableBack
-                    )
-                }
+                renderKey(view, R.id.key21, keyboard, 1, 0, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key22, keyboard, 1, 1, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key23, keyboard, 1, 2, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key24, keyboard, 1, 3, disableMode, disableBack, onKeyPressed),
 
-        tableRows.forEach {
-            table.addView(it.first, TableLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-            ))
-        }
+                renderKey(view, R.id.key31, keyboard, 2, 0, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key32, keyboard, 2, 1, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key33, keyboard, 2, 2, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key34, keyboard, 2, 3, disableMode, disableBack, onKeyPressed),
 
-        val observable = Observable.merge(
-                tableRows.map { it.second }
+                renderKey(view, R.id.key41, keyboard, 3, 0, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key42, keyboard, 3, 1, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key43, keyboard, 3, 2, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key44, keyboard, 3, 3, disableMode, disableBack, onKeyPressed)
         )
-
-        return observable
-    }
-
-    private fun renderRow(
-            context: Context,
-            row: Row,
-            disableMode: Boolean,
-            disableBack: Boolean
-    ): Pair<TableRow, Observable<Key>> {
-        val tableRow = TableRow(context)
-        tableRow.setPadding(0, 0, 0, 0)
-
-        val keys = row.keys
-                .map { renderKey(context, it, disableMode, disableBack) }
-
-        keys.forEach {
-            tableRow.addView(it.first, TableRow.LayoutParams(
-                    TableLayout.LayoutParams.MATCH_PARENT,
-                    TableLayout.LayoutParams.MATCH_PARENT
-            ))
-        }
-
-        val observable = Observable.merge(
-                keys.map { it.second }
-        )
-
-        return Pair(tableRow, observable)
     }
 
     private fun renderKey(
-            context: Context,
+            view: View,
+            buttonId: Int,
+            keyboard: Keyboard,
+            row: Int,
+            keyIdx: Int,
+            disableMode: Boolean,
+            disableBack: Boolean,
+            onKeyPressed: (Key) -> Unit
+    ): Disposable? {
+        val button: Button = view.findViewById(buttonId)
+        val key = keyboard.rows[row].keys[keyIdx]
+
+        return renderKey(button, key, disableMode, disableBack, onKeyPressed)
+    }
+
+    private fun renderKey(
+            button: Button,
             key: Key,
             disableMode: Boolean,
-            disableBack: Boolean
-    ): Pair<Button, Observable<Key>> {
-        val button = Button(context)
+            disableBack: Boolean,
+            onKeyPressed: (Key) -> Unit
+    ): Disposable? {
         button.text = key.text
-        val textSize = 60f
 
-        when (key) {
-            is DisabledKey -> {
-                button.isEnabled = false
-                button.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
-            }
-            is EmptyKey ->
-                button.isEnabled = false
-            is InputKey ->
-                button.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
-            is BackKey -> {
-                if (disableBack) {
-                    button.isEnabled = false
-                }
-                button.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
-            }
-            is ModeKey -> {
-                if (disableMode) {
-                    button.isEnabled = false
-                }
-            }
+        button.isEnabled = when (key) {
+            is DisabledKey ->  false
+            is EmptyKey ->  false
+            is InputKey ->  true
+            is BackKey -> !disableBack
+            is ModeKey -> !disableMode
         }
 
-        val observable = if (button.isEnabled) {
-            RxView.clicks(button)
-                    .map { key }
+        return if (button.isEnabled) {
+            RxView.clicks(button).subscribe { onKeyPressed(key) }
         } else {
-            Observable.empty()
+            null
         }
-
-        return Pair(button, observable)
     }
 
     override fun onDestroyView() {
         subscriptions.forEach(Disposable::dispose)
         subscriptions = emptyList()
+        keySubscriptions.forEach(Disposable::dispose)
+        keySubscriptions = emptyList()
         super.onDestroyView()
     }
 }
