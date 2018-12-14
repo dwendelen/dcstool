@@ -14,23 +14,12 @@ class Model : ViewModel() {
         return stack.peek()
     }
 
-    var input: CharSequence = "" //TODO DEPRECATED
-    var coordinate: LaLoDegree? = null //TODO DEPRECATED
-
     val addedFavorites: PublishSubject<Favorite> = PublishSubject.create()
 
     val favorites: MutableList<Favorite> = arrayListOf()
     var favoriteFactory: CoordinateFactory<*> = coordinateSystems[defaultCoordinateSystemIdx].factory
 
-    fun saveCoordinate(name: CharSequence) { //TODO DEPRECATED
-        coordinate?.let {
-            val favorite = Favorite(name, it)
-            favorites.add(favorite)
-            addedFavorites.onNext(favorite)
-        }
-    }
-
-    fun saveCoordinate2(name: CharSequence) {
+    fun saveCoordinate(name: CharSequence) {
         parserState.coordinate?.let {
             val favorite = Favorite(name, it.toLaLoDegree())
             favorites.add(favorite)
