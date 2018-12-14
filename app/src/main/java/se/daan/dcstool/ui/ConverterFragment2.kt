@@ -4,11 +4,12 @@ import android.arch.lifecycle.ViewModelProviders
 import android.content.Context
 import android.os.Bundle
 import android.support.v4.app.Fragment
-import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.*
+import android.widget.Button
+import android.widget.Spinner
+import android.widget.TextView
 import com.jakewharton.rxbinding2.view.RxView
 import io.reactivex.Observable
 import io.reactivex.disposables.Disposable
@@ -62,7 +63,7 @@ class ConverterFragment2 : Fragment() {
     ): List<Disposable> {
         val factory = CoordinateSystemDropdownBuilder.build(context, spinner)
 
-        val inputSubscription = states.subscribe( { state ->
+        val inputSubscription = states.subscribe({ state ->
             input.text = state.print()
         }, {
             it.printStackTrace()
@@ -87,13 +88,13 @@ class ConverterFragment2 : Fragment() {
     private fun getStates(
             view: View,
             model: Model
-    ):  Observable<ParserState> {
+    ): Observable<ParserState> {
         val subject = PublishSubject.create<ParserState>()
 
 
-        var onKeyPressed : (Key) -> Unit = {}
-        onKeyPressed = { key ->
-            when(key) {
+        var onKeyPressed: (Key, CharSequence) -> Unit = {_,_ ->}
+        onKeyPressed = { key, preferredKeyboard ->
+            when (key) {
                 is BackKey -> model.stack.remove()
                 is InputKey -> {
                     val newState = model.parserState.handle(key.input)
@@ -101,11 +102,11 @@ class ConverterFragment2 : Fragment() {
                 }
             }
 
-            renderKeyboards(view, model, onKeyPressed)
+            renderKeyboards(view, model, onKeyPressed, preferredKeyboard)
             subject.onNext(model.parserState)
         }
 
-        renderKeyboards(view, model, onKeyPressed)
+        renderKeyboards(view, model, onKeyPressed, "")
 
         val replay = subject.replay(1)
         replay.connect()
@@ -116,12 +117,14 @@ class ConverterFragment2 : Fragment() {
     private fun renderKeyboards(
             view: View,
             model: Model,
-            onKeyPressed: (Key) -> Unit
+            onKeyPressed: (Key, CharSequence) -> Unit,
+            preferredKeyboard: CharSequence
     ) {
         val state = model.parserState
         val inputs = state.inputs
         val keyboards = getKeyboards(inputs)
-        val idx = 0
+        val idx = keyboards.indexOfFirst { it.id == preferredKeyboard }
+                .let { if (it == -1) 0 else it }
 
         val disableBack = model.stack.size <= 1
 
@@ -133,7 +136,7 @@ class ConverterFragment2 : Fragment() {
             keyboards: List<Keyboard>,
             idx: Int,
             disableBack: Boolean,
-            onKeyPressed: (Key) -> Unit
+            onKeyPressed: (Key, CharSequence) -> Unit
     ) {
         val disableMode = keyboards.size <= 1
         val keyboard = keyboards[idx]
@@ -141,11 +144,11 @@ class ConverterFragment2 : Fragment() {
         val myOnKeyPressed: (Key) -> Unit = { key ->
             keySubscriptions.forEach { it.dispose() }
 
-            if(key is ModeKey) {
-                val newIdx = (idx + 1)%keyboards.size
+            if (key is ModeKey) {
+                val newIdx = (idx + 1) % keyboards.size
                 renderKeyboards(view, keyboards, newIdx, disableBack, onKeyPressed)
             } else {
-                onKeyPressed(key)
+                onKeyPressed(key, keyboard.id)
             }
         }
 
@@ -208,9 +211,9 @@ class ConverterFragment2 : Fragment() {
         button.text = key.text
 
         button.isEnabled = when (key) {
-            is DisabledKey ->  false
-            is EmptyKey ->  false
-            is InputKey ->  true
+            is DisabledKey -> false
+            is EmptyKey -> false
+            is InputKey -> true
             is BackKey -> !disableBack
             is ModeKey -> !disableMode
         }

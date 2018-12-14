@@ -1,9 +1,9 @@
 package se.daan.dcstool.ui.model
 
-import se.daan.dcstool.model.Hemisphere
 import se.daan.dcstool.model.parser.*
 
 data class Keyboard(
+        val id: CharSequence,
         val rows: List<Row>
 )
 
@@ -14,6 +14,7 @@ data class Row(
 sealed class Key {
     abstract val text: CharSequence
 }
+
 object EmptyKey : Key() {
     override val text = ""
 }
@@ -39,36 +40,24 @@ fun getKeyboards(inputs: Collection<Input>): List<Keyboard> {
 
     val digitInputs = arrayListOf<DigitInput>()
     val hemiInputs = arrayListOf<HemiInput>()
-    val northLatInputs = arrayListOf<LatitudeBandInput>()
-    val southLatInputs = arrayListOf<LatitudeBandInput>()
+    val latInputs = arrayListOf<LatitudeBandInput>()
     val gridInputs = arrayListOf<GridInput>()
 
     sortedInputs.forEach {
         when (it) {
             is DigitInput -> digitInputs.add(it)
             is HemiInput -> hemiInputs.add(it)
-            is LatitudeBandInput ->
-                if (it.latitudeBand.hemisphere == Hemisphere.NORTH)
-                    northLatInputs.add(it)
-                else
-                    southLatInputs.add(it)
+            is LatitudeBandInput -> latInputs.add(it)
             is GridInput -> gridInputs.add(it)
         }
     }
 
     val keyboards = arrayListOf<Keyboard>()
-    if (digitInputs.isNotEmpty() || hemiInputs.isNotEmpty()) {
-        keyboards.add(createDigitKeyboard(digitInputs, hemiInputs))
-    }
-    if (northLatInputs.isNotEmpty()) {
-        keyboards.add(createLetterKeyboard(northLatInputs))
-    }
-    if (southLatInputs.isNotEmpty()) {
-        keyboards.add(createLetterKeyboard(southLatInputs))
-    }
-    if (gridInputs.isNotEmpty()) {
-        keyboards.add(createLetterKeyboard(gridInputs))
-    }
+    createDigitKeyboard(digitInputs, hemiInputs)?.let(keyboards::add)
+    createLetterKeyboard1(latInputs)?.let(keyboards::add)
+    createLetterKeyboard2(latInputs)?.let(keyboards::add)
+    createLetterKeyboard1(gridInputs)?.let(keyboards::add)
+    createLetterKeyboard2(gridInputs)?.let(keyboards::add)
 
     return if (keyboards.isEmpty()) {
         listOf(emptyKeyboard())
@@ -78,15 +67,22 @@ fun getKeyboards(inputs: Collection<Input>): List<Keyboard> {
 }
 
 fun emptyKeyboard(): Keyboard {
-    return Keyboard(listOf(
-            Row(listOf(ModeKey, EmptyKey, EmptyKey, BackKey))
+    return Keyboard("empty", listOf(
+            Row(listOf(EmptyKey, EmptyKey, EmptyKey, EmptyKey)),
+            Row(listOf(EmptyKey, EmptyKey, EmptyKey, EmptyKey)),
+            Row(listOf(BackKey, EmptyKey, EmptyKey, EmptyKey)),
+            Row(listOf(ModeKey, EmptyKey, EmptyKey, EmptyKey))
     ))
 }
 
 fun createDigitKeyboard(
         digits: List<DigitInput>,
         hemis: List<HemiInput>
-): Keyboard {
+): Keyboard? {
+    if (hemis.isEmpty() && digits.isEmpty()) {
+        return null
+    }
+
     if (hemis.size > 2) {
         throw IllegalStateException("There should be at most 2 hemi inputs")
     }
@@ -98,8 +94,8 @@ fun createDigitKeyboard(
     val num2 = ('4'..'6').map { digitToKey(digits, it) }
     val num3 = ('7'..'9').map { digitToKey(digits, it) }
 
-    val hemi1 = inputToKey(hemis, 0)
-    val hemi2 = inputToKey(hemis, 1)
+    val hemi1 = hemiToKey(hemis, 0)
+    val hemi2 = hemiToKey(hemis, 1)
 
     val row1 = listOf(hemi1) + num1
     val row2 = listOf(hemi2) + num2
@@ -111,7 +107,7 @@ fun createDigitKeyboard(
             digitToKey(digits, '.')
     )
 
-    return Keyboard(listOf(
+    return Keyboard("digit", listOf(
             Row(row1),
             Row(row2),
             Row(row3),
@@ -119,6 +115,16 @@ fun createDigitKeyboard(
     ))
 }
 
+fun hemiToKey(
+        inputs: List<HemiInput>,
+        idx: Int
+): Key {
+    return if (idx < inputs.size) {
+        InputKey(inputs[idx])
+    } else {
+        EmptyKey
+    }
+}
 
 fun digitToKey(digits: List<DigitInput>, char: Char): Key {
     return if (digits.contains(DigitInput(char))) {
@@ -128,31 +134,50 @@ fun digitToKey(digits: List<DigitInput>, char: Char): Key {
     }
 }
 
-fun createLetterKeyboard(
+
+fun createLetterKeyboard1(
         inputs: List<Input>
-): Keyboard {
-    if(inputs.size > 10) {
-        throw IllegalStateException("No more than 10 letters allowed")
+): Keyboard? {
+    if (inputs.isEmpty()) {
+        return null
     }
 
-    val row1 = (0..3).map { inputToKey(inputs, it) }
-    val row2 = (4..7).map { inputToKey(inputs, it) }
-    val row3 = (8..9).map { inputToKey(inputs, it) }
+    val row1 = listOf('A', 'B', 'C', 'D').map { inputToKey(inputs, it) }
+    val row2 = listOf('E', 'F', 'G', 'H').map { inputToKey(inputs, it) }
+    val row3 = listOf('J', 'K', 'L').map { inputToKey(inputs, it) }
+    val row4 = listOf('M', 'N', 'P').map { inputToKey(inputs, it) }
 
-    return Keyboard(listOf(
+    return Keyboard("letter1", listOf(
             Row(row1),
             Row(row2),
-            Row(listOf(ModeKey, row3[0], row3[1], BackKey))
+            Row(listOf(BackKey, row3[0], row3[1], row3[2])),
+            Row(listOf(ModeKey, row4[0], row4[1], row4[2]))
+    )
+    )
+}
+
+fun createLetterKeyboard2(
+        inputs: List<Input>
+): Keyboard? {
+    if (inputs.isEmpty()) {
+        return null
+    }
+
+    val row1 = listOf('L', 'M', 'N', 'P').map { inputToKey(inputs, it) }
+    val row2 = listOf('Q', 'R', 'S', 'T').map { inputToKey(inputs, it) }
+    val row3 = listOf('U', 'V', 'W').map { inputToKey(inputs, it) }
+    val row4 = listOf('X', 'Y', 'Z').map { inputToKey(inputs, it) }
+
+    return Keyboard("letter2", listOf(
+            Row(row1),
+            Row(row2),
+            Row(listOf(BackKey, row3[0], row3[1], row3[2])),
+            Row(listOf(ModeKey, row4[0], row4[1], row4[2]))
     ))
 }
 
-fun inputToKey(
-        inputs: List<Input>,
-        idx: Int
-): Key {
-    return if (idx < inputs.size) {
-        InputKey(inputs[idx])
-    } else {
-        EmptyKey
-    }
+fun inputToKey(inputs: List<Input>, char: Char): Key {
+    val inputAsChars = inputs.firstOrNull { it.charToDisplay == char }
+
+    return inputAsChars?.let { InputKey(it) } ?: DisabledKey(char)
 }

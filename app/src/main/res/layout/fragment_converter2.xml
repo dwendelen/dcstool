@@ -64,28 +64,24 @@
                 android:layout_weight="1">
             <Button
                     android:id="@+id/key11"
-                    android:text="N"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key12"
-                    android:text="1"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key13"
-                    android:text="2"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key14"
-                    android:text="3"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
@@ -97,28 +93,24 @@
                 android:layout_weight="1">
             <Button
                     android:id="@+id/key21"
-                    android:text="S"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key22"
-                    android:text="4"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key23"
-                    android:text="5"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key24"
-                    android:text="6"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
@@ -131,28 +123,24 @@
                 android:layout_weight="1">
             <Button
                     android:id="@+id/key31"
-                    android:text="&lt;"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key32"
-                    android:text="7"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key33"
-                    android:text="8"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key34"
-                    android:text="9"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
@@ -164,27 +152,23 @@
                 android:layout_weight="1">
             <Button
                     android:id="@+id/key41"
-                    android:text="MODE"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key42"
-                    android:text="0"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key43"
-                    android:text="0"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
                     android:layout_weight="1"/>
             <Button
                     android:id="@+id/key44"
-                    android:text="."
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:textSize="60sp"
