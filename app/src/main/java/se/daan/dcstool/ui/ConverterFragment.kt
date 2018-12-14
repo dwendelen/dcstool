@@ -36,7 +36,7 @@ class ConverterFragment : Fragment() {
         val button: Button = view.findViewById(R.id.save_button)
 
         val model: Model = ViewModelProviders.of(activity!!).get(Model::class.java)
-        renderKeyboards(view, model)
+        val keyboardSubscription = renderKeyboards(view, model)
 
         val outputSubscriptions = connectOutputs(view.context, model.lastState, input, spinner1, output1)
 
@@ -48,7 +48,7 @@ class ConverterFragment : Fragment() {
                             saveDialog.show(fragmentManager, "save_dialog")
                         }
 
-        subscriptions = listOf(outputSubscriptions, listOf(buttonSubscription)).flatten()
+        subscriptions = listOf(outputSubscriptions, listOf(buttonSubscription, keyboardSubscription)).flatten()
 
         return view
     }
@@ -87,7 +87,7 @@ class ConverterFragment : Fragment() {
     private fun renderKeyboards(
             view: View,
             model: Model
-    ) {
+    ): Disposable {
         val onKeyPressed: (Key) -> Unit =
                 { key ->
                     when (key) {
@@ -100,7 +100,7 @@ class ConverterFragment : Fragment() {
 
                 }
 
-        model.lastState.subscribe {
+        return model.lastState.subscribe {
             renderKeyboards(view, model, onKeyPressed)
         }
     }
