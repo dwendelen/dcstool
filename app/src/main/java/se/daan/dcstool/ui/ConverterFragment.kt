@@ -11,50 +11,34 @@ import android.widget.Button
 import android.widget.Spinner
 import android.widget.TextView
 import com.jakewharton.rxbinding2.view.RxView
-import com.jakewharton.rxbinding2.widget.RxTextView
 import io.reactivex.Observable
 import io.reactivex.disposables.Disposable
 import io.reactivex.functions.BiFunction
-import se.daan.dcstool.model.*
-import se.daan.dcstool.model.parser.Parser
-import se.daan.dcstool.ui.model.Model
+import io.reactivex.subjects.PublishSubject
+import se.daan.dcstool.model.Coordinate
+import se.daan.dcstool.model.CoordinateFactory
+import se.daan.dcstool.model.parser.ParserState
+import se.daan.dcstool.ui.model.*
 import java.util.*
 
 
 class ConverterFragment : Fragment() {
     private var subscriptions: List<Disposable> = emptyList()
-    private val parser = Parser()
+    private var keySubscriptions: List<Disposable> = emptyList()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_converter, container, false)
 
         val input: TextView = view.findViewById(R.id.input)
-        val spinner1: Spinner = view.findViewById(R.id.spinner1)
-        val output1: TextView = view.findViewById(R.id.output1)
-        val spinner2: Spinner = view.findViewById(R.id.spinner2)
-        val output2: TextView = view.findViewById(R.id.output2)
-        val spinner3: Spinner = view.findViewById(R.id.spinner3)
-        val output3: TextView = view.findViewById(R.id.output3)
+        val spinner1: Spinner = view.findViewById(R.id.spinner)
+        val output1: TextView = view.findViewById(R.id.output)
         val button: Button = view.findViewById(R.id.save_button)
 
         val model: Model = ViewModelProviders.of(activity!!).get(Model::class.java)
-        input.text = model.input
+        val states = getStates(view, model)
 
-        val inputChanges = RxTextView.textChanges(input)
-        inputChanges.subscribe { newInput -> model.input = newInput }
-
-        val parsed = inputChanges
-                .map(this::parse)
-                .publish()
-
-        parsed.subscribe { newCoordinate -> model.coordinate = newCoordinate.orElse(null) }
-
-        val item1 = addGroup(view.context, parsed, spinner1, output1)
-        val item2 = addGroup(view.context, parsed, spinner2, output2)
-        val item3 = addGroup(view.context, parsed, spinner3, output3)
-
-        val parsedListener = parsed.connect()
+        val outputSubscriptions = connectOutputs(view.context, states, input, spinner1, output1)
 
         val buttonSubscription =
                 RxView.clicks(button)
@@ -65,38 +49,187 @@ class ConverterFragment : Fragment() {
                             saveDialog.show(fragmentManager, "save_dialog")
                         }
 
-        subscriptions = listOf(item1, item2, item3, listOf(parsedListener), listOf(buttonSubscription)).flatten()
+        subscriptions = listOf(outputSubscriptions, listOf(buttonSubscription)).flatten()
 
         return view
     }
 
-    private fun addGroup(context: Context, input: Observable<Optional<LaLoDegree>>, spinner: Spinner, output: TextView): List<Disposable> {
+    private fun connectOutputs(
+            context: Context,
+            states: Observable<ParserState>,
+            input: TextView,
+            spinner: Spinner,
+            output: TextView
+    ): List<Disposable> {
         val factory = CoordinateSystemDropdownBuilder.build(context, spinner)
 
-        val textDisposable = Observable.combineLatest(input, factory, BiFunction<Optional<LaLoDegree>, CoordinateFactory<*>, String> { inp, fac ->
+        val inputSubscription = states.subscribe({ state ->
+            input.text = state.print()
+        }, {
+            it.printStackTrace()
+        })
+
+        val outputSubscription = Observable.combineLatest(states, factory, BiFunction<ParserState, CoordinateFactory<*>, String> { inp, fac ->
             mapDegree(fac, inp)
         }).subscribe(output::setText)
 
-        return listOf(textDisposable)
+        return listOf(inputSubscription, outputSubscription)
     }
 
-    private fun parse(input: CharSequence): Optional<LaLoDegree> {
-        val coordinate = parser.parseChars(input)
-        val laLo = coordinate?.toLaLoDegree()
 
-        return Optional.ofNullable(laLo)
-    }
-
-    private fun mapDegree(factory: CoordinateFactory<*>, laLoDegree: Optional<LaLoDegree>): String {
-        return laLoDegree
+    private fun mapDegree(factory: CoordinateFactory<*>, state: ParserState): String {
+        return Optional.ofNullable(state.coordinate)
+                .map(Coordinate::toLaLoDegree)
                 .map(factory::fromLaLoDegree)
                 .map(Coordinate::print)
                 .orElse("")
     }
 
+    private fun getStates(
+            view: View,
+            model: Model
+    ): Observable<ParserState> {
+        val subject = PublishSubject.create<ParserState>()
+
+
+        var onKeyPressed: (Key, CharSequence) -> Unit = {_,_ ->}
+        onKeyPressed = { key, preferredKeyboard ->
+            when (key) {
+                is BackKey -> model.stack.remove()
+                is InputKey -> {
+                    val newState = model.parserState.handle(key.input)
+                    model.stack.addFirst(newState)
+                }
+            }
+
+            renderKeyboards(view, model, onKeyPressed, preferredKeyboard)
+            subject.onNext(model.parserState)
+        }
+
+        renderKeyboards(view, model, onKeyPressed, "")
+
+        val replay = subject.replay(1)
+        replay.connect()
+        subject.onNext(model.parserState)
+        return replay
+    }
+
+    private fun renderKeyboards(
+            view: View,
+            model: Model,
+            onKeyPressed: (Key, CharSequence) -> Unit,
+            preferredKeyboard: CharSequence
+    ) {
+        val state = model.parserState
+        val inputs = state.inputs
+        val keyboards = getKeyboards(inputs)
+        val idx = keyboards.indexOfFirst { it.id == preferredKeyboard }
+                .let { if (it == -1) 0 else it }
+
+        val disableBack = model.stack.size <= 1
+
+        renderKeyboards(view, keyboards, idx, disableBack, onKeyPressed)
+    }
+
+    private fun renderKeyboards(
+            view: View,
+            keyboards: List<Keyboard>,
+            idx: Int,
+            disableBack: Boolean,
+            onKeyPressed: (Key, CharSequence) -> Unit
+    ) {
+        val disableMode = keyboards.size <= 1
+        val keyboard = keyboards[idx]
+
+        val myOnKeyPressed: (Key) -> Unit = { key ->
+            keySubscriptions.forEach { it.dispose() }
+
+            if (key is ModeKey) {
+                val newIdx = (idx + 1) % keyboards.size
+                renderKeyboards(view, keyboards, newIdx, disableBack, onKeyPressed)
+            } else {
+                onKeyPressed(key, keyboard.id)
+            }
+        }
+
+        keySubscriptions = renderKeyboard(view, keyboard, disableMode, disableBack, myOnKeyPressed)
+    }
+
+    private fun renderKeyboard(
+            view: View,
+            keyboard: Keyboard,
+            disableMode: Boolean,
+            disableBack: Boolean,
+            onKeyPressed: (Key) -> Unit
+    ): List<Disposable> {
+        return listOfNotNull(
+                renderKey(view, R.id.key11, keyboard, 0, 0, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key12, keyboard, 0, 1, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key13, keyboard, 0, 2, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key14, keyboard, 0, 3, disableMode, disableBack, onKeyPressed),
+
+                renderKey(view, R.id.key21, keyboard, 1, 0, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key22, keyboard, 1, 1, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key23, keyboard, 1, 2, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key24, keyboard, 1, 3, disableMode, disableBack, onKeyPressed),
+
+                renderKey(view, R.id.key31, keyboard, 2, 0, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key32, keyboard, 2, 1, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key33, keyboard, 2, 2, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key34, keyboard, 2, 3, disableMode, disableBack, onKeyPressed),
+
+                renderKey(view, R.id.key41, keyboard, 3, 0, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key42, keyboard, 3, 1, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key43, keyboard, 3, 2, disableMode, disableBack, onKeyPressed),
+                renderKey(view, R.id.key44, keyboard, 3, 3, disableMode, disableBack, onKeyPressed)
+        )
+    }
+
+    private fun renderKey(
+            view: View,
+            buttonId: Int,
+            keyboard: Keyboard,
+            row: Int,
+            keyIdx: Int,
+            disableMode: Boolean,
+            disableBack: Boolean,
+            onKeyPressed: (Key) -> Unit
+    ): Disposable? {
+        val button: Button = view.findViewById(buttonId)
+        val key = keyboard.rows[row].keys[keyIdx]
+
+        return renderKey(button, key, disableMode, disableBack, onKeyPressed)
+    }
+
+    private fun renderKey(
+            button: Button,
+            key: Key,
+            disableMode: Boolean,
+            disableBack: Boolean,
+            onKeyPressed: (Key) -> Unit
+    ): Disposable? {
+        button.text = key.text
+
+        button.isEnabled = when (key) {
+            is DisabledKey -> false
+            is EmptyKey -> false
+            is InputKey -> true
+            is BackKey -> !disableBack
+            is ModeKey -> !disableMode
+        }
+
+        return if (button.isEnabled) {
+            RxView.clicks(button).subscribe { onKeyPressed(key) }
+        } else {
+            null
+        }
+    }
+
     override fun onDestroyView() {
         subscriptions.forEach(Disposable::dispose)
         subscriptions = emptyList()
+        keySubscriptions.forEach(Disposable::dispose)
+        keySubscriptions = emptyList()
         super.onDestroyView()
     }
 }
