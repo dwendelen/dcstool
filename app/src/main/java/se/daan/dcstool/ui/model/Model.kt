@@ -1,17 +1,39 @@
 package se.daan.dcstool.ui.model;
 
 import android.arch.lifecycle.ViewModel
+import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
+import io.reactivex.subjects.Subject
 import se.daan.dcstool.model.*
 import se.daan.dcstool.model.parser.Parser
 import se.daan.dcstool.model.parser.ParserState
 import java.util.*
 
 class Model : ViewModel() {
-    var stack: Deque<ParserState> = LinkedList<ParserState>(listOf(Parser.newState()))
+    private var stack: Deque<ParserState> = LinkedList()
+
+    val lastState: Subject<ParserState> = BehaviorSubject.create()
+
+    init {
+        pushState(Parser.newState())
+    }
 
     val parserState: ParserState get() {
         return stack.peek()
+    }
+
+    fun popState() {
+        stack.remove()
+        lastState.onNext(parserState)
+    }
+
+    fun pushState(state: ParserState) {
+        stack.addFirst(state)
+        lastState.onNext(parserState)
+    }
+
+    fun canPop(): Boolean {
+        return stack.size > 1
     }
 
     val addedFavorites: PublishSubject<Favorite> = PublishSubject.create()
@@ -24,8 +46,13 @@ class Model : ViewModel() {
             val favorite = Favorite(name, it.toLaLoDegree())
             favorites.add(favorite)
             addedFavorites.onNext(favorite)
+
+            stack.retainAll(listOf(stack.last))
+            lastState.onNext(parserState)
         }
     }
+
+
 }
 
 const val defaultCoordinateSystemIdx = 5

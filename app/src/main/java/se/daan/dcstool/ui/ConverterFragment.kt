@@ -14,7 +14,6 @@ import com.jakewharton.rxbinding2.view.RxView
 import io.reactivex.Observable
 import io.reactivex.disposables.Disposable
 import io.reactivex.functions.BiFunction
-import io.reactivex.subjects.PublishSubject
 import se.daan.dcstool.model.Coordinate
 import se.daan.dcstool.model.CoordinateFactory
 import se.daan.dcstool.model.parser.ParserState
@@ -25,6 +24,7 @@ import java.util.*
 class ConverterFragment : Fragment() {
     private var subscriptions: List<Disposable> = emptyList()
     private var keySubscriptions: List<Disposable> = emptyList()
+    private var preferredKeyboard: CharSequence = ""
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
@@ -36,16 +36,15 @@ class ConverterFragment : Fragment() {
         val button: Button = view.findViewById(R.id.save_button)
 
         val model: Model = ViewModelProviders.of(activity!!).get(Model::class.java)
-        val states = getStates(view, model)
+        renderKeyboards(view, model)
 
-        val outputSubscriptions = connectOutputs(view.context, states, input, spinner1, output1)
+        val outputSubscriptions = connectOutputs(view.context, model.lastState, input, spinner1, output1)
 
         val buttonSubscription =
                 RxView.clicks(button)
                         .subscribe {
                             val saveDialog = SaveDialog()
-                            saveDialog.name
-                                    .subscribe(model::saveCoordinate)
+                            saveDialog.name.subscribe(model::saveCoordinate)
                             saveDialog.show(fragmentManager, "save_dialog")
                         }
 
@@ -85,40 +84,31 @@ class ConverterFragment : Fragment() {
                 .orElse("")
     }
 
-    private fun getStates(
+    private fun renderKeyboards(
             view: View,
             model: Model
-    ): Observable<ParserState> {
-        val subject = PublishSubject.create<ParserState>()
+    ) {
+        val onKeyPressed: (Key) -> Unit =
+                { key ->
+                    when (key) {
+                        is BackKey -> model.popState()
+                        is InputKey -> {
+                            val newState = model.parserState.handle(key.input)
+                            model.pushState(newState)
+                        }
+                    }
 
-
-        var onKeyPressed: (Key, CharSequence) -> Unit = {_,_ ->}
-        onKeyPressed = { key, preferredKeyboard ->
-            when (key) {
-                is BackKey -> model.stack.remove()
-                is InputKey -> {
-                    val newState = model.parserState.handle(key.input)
-                    model.stack.addFirst(newState)
                 }
-            }
 
-            renderKeyboards(view, model, onKeyPressed, preferredKeyboard)
-            subject.onNext(model.parserState)
+        model.lastState.subscribe {
+            renderKeyboards(view, model, onKeyPressed)
         }
-
-        renderKeyboards(view, model, onKeyPressed, "")
-
-        val replay = subject.replay(1)
-        replay.connect()
-        subject.onNext(model.parserState)
-        return replay
     }
 
     private fun renderKeyboards(
             view: View,
             model: Model,
-            onKeyPressed: (Key, CharSequence) -> Unit,
-            preferredKeyboard: CharSequence
+            onKeyPressed: (Key) -> Unit
     ) {
         val state = model.parserState
         val inputs = state.inputs
@@ -126,7 +116,7 @@ class ConverterFragment : Fragment() {
         val idx = keyboards.indexOfFirst { it.id == preferredKeyboard }
                 .let { if (it == -1) 0 else it }
 
-        val disableBack = model.stack.size <= 1
+        val disableBack = !model.canPop()
 
         renderKeyboards(view, keyboards, idx, disableBack, onKeyPressed)
     }
@@ -136,7 +126,7 @@ class ConverterFragment : Fragment() {
             keyboards: List<Keyboard>,
             idx: Int,
             disableBack: Boolean,
-            onKeyPressed: (Key, CharSequence) -> Unit
+            onKeyPressed: (Key) -> Unit
     ) {
         val disableMode = keyboards.size <= 1
         val keyboard = keyboards[idx]
@@ -148,7 +138,8 @@ class ConverterFragment : Fragment() {
                 val newIdx = (idx + 1) % keyboards.size
                 renderKeyboards(view, keyboards, newIdx, disableBack, onKeyPressed)
             } else {
-                onKeyPressed(key, keyboard.id)
+                preferredKeyboard = keyboard.id
+                onKeyPressed(key)
             }
         }
 
