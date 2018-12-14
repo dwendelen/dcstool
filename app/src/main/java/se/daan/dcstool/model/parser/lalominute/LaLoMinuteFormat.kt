@@ -3,20 +3,18 @@ package se.daan.dcstool.model.parser.lalominute
 import se.daan.dcstool.model.Hemisphere
 import se.daan.dcstool.model.MinutePart
 import se.daan.dcstool.model.PartType
+import se.daan.dcstool.model.format
 import se.daan.dcstool.model.parser.*
 import se.daan.dcstool.model.parser.IntRange
-
-
-
 
 fun newLaLoMinuteFormat(): LaLoFormat0 {
     val ns = HemiPiece0(Hemisphere.NORTH, Hemisphere.SOUTH)
     val ns_range = IntRange("00", "89")
-    val lat = MinutePart0(ns, ns_range)
+    val lat = MinutePart0(ns, ns_range, "00")
 
     val ew = HemiPiece0(Hemisphere.EAST, Hemisphere.WEST)
     val ew_range = IntRange("000", "179")
-    val lon = MinutePart0(ew, ew_range)
+    val lon = MinutePart0(ew, ew_range, "000")
 
     return LaLoFormat0(lat, lon)
 }
@@ -26,7 +24,8 @@ interface MinutePart2Done: PartPieceNotInit
 
 data class MinutePart0(
         val hemi: HemiPiece0,
-        val intRange: IntRange
+        val intRange: IntRange,
+        val degreeFormat: String
 ) : DelegatingPiece<HemiInput, Hemisphere, MinutePart1>(),
     PartPieceInit<MinutePart1>
 {
@@ -37,13 +36,14 @@ data class MinutePart0(
     }
 
     override fun handleCurrent(newPiece: Hemisphere): MinutePart1 {
-        return MinutePart1(newPiece, Int0(intRange, ""))
+        return MinutePart1(newPiece, Int0(intRange, ""), degreeFormat)
     }
 }
 
 data class MinutePart1(
         val hemi: Hemisphere,
-        val degree: Int0
+        val degree: Int0,
+        val degreeFormat: String
 ) : DelegatingPiece<DigitInput, IntHelper, MinutePart12>(),
         MinutePart12,
         PartPieceIntermediate<MinutePart12>
@@ -52,8 +52,13 @@ data class MinutePart1(
 
     override fun handleCurrent(newPiece: IntHelper): MinutePart12 {
         return when (newPiece) {
-            is Int0 -> MinutePart1(hemi, newPiece)
-            is IntDone -> MinutePart2(hemi, newPiece.int, Decimal0(IntRange("00", "59"), ""))
+            is Int0 -> MinutePart1(hemi, newPiece, degreeFormat)
+            is IntDone -> MinutePart2(
+                    hemi,
+                    newPiece.int,
+                    degreeFormat,
+                    Decimal0(IntRange("00", "59"), "")
+            )
         }
     }
 
@@ -65,6 +70,7 @@ data class MinutePart1(
 data class MinutePart2(
         val hemi: Hemisphere,
         val degree: Int,
+        val degreeFormat: String,
         val minute: Decimal0
 ) : DelegatingPiece<DigitInput, DecimalHelper<*>, MinutePart2Done>(),
         MinutePart12,
@@ -78,24 +84,27 @@ data class MinutePart2(
             is Decimal0 -> MinutePart2(
                     hemi,
                     degree,
+                    degreeFormat,
                     newPiece
             )
             is DecimalDone -> MinutePartDone(
                     hemi,
                     degree,
+                    degreeFormat,
                     newPiece
             )
         }
     }
 
     override fun print(): CharSequence {
-        return "${hemi.abbreviation} $degree° ${minute.print()}'"
+        return "${hemi.abbreviation} ${format(degree, degreeFormat)}° ${minute.print()}'"
     }
 }
 
 data class MinutePartDone(
         val hemi: Hemisphere,
         val degree: Int,
+        val degreeFormat: String,
         val minute: DecimalDone
 ) : DelegatingPiece<DigitInput, Decimal2, MinutePartDone>(),
         MinutePart2Done,
@@ -104,11 +113,11 @@ data class MinutePartDone(
     override val currentPiece = minute
 
     override fun handleCurrent(newPiece: Decimal2): MinutePartDone {
-        return MinutePartDone(hemi, degree, newPiece)
+        return MinutePartDone(hemi, degree, degreeFormat, newPiece)
     }
 
     override fun print(): CharSequence {
-        return "${hemi.abbreviation} $degree° ${minute.print()}'"
+        return "${hemi.abbreviation} ${format(degree, degreeFormat)}° ${minute.print()}'"
     }
 
     override fun getPart(type: PartType): MinutePart {

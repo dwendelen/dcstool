@@ -3,6 +3,9 @@ package se.daan.dcstool.model.parser.mgrs
 import se.daan.dcstool.model.*
 import se.daan.dcstool.model.parser.*
 import se.daan.dcstool.model.parser.IntRange
+import java.math.RoundingMode
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 
 interface MGRSFormat01
 
@@ -41,7 +44,7 @@ data class MGRSFormat1(
     }
 
     override fun print(): CharSequence {
-        return "$zone${currentPiece.print()}"
+        return "${format(zone, "00")}${currentPiece.print()}"
     }
 }
 
@@ -56,7 +59,7 @@ data class MGRSFormat2(
     }
 
     override fun print(): CharSequence {
-        return "$zone${latitudeBand.name} ${currentPiece.print()}"
+        return "${format(zone, "00")}${latitudeBand.name} ${currentPiece.print()}"
     }
 }
 
@@ -72,7 +75,7 @@ data class MGRSFormat3(
     }
 
     override fun print(): CharSequence {
-        return "$zone${latitudeBand.name} ${columnLetter.name}${currentPiece.print()}"
+        return "${format(zone, "00")}${latitudeBand.name} ${columnLetter.name}${currentPiece.print()}"
     }
 }
 
@@ -89,7 +92,7 @@ data class MGRSFormat4(
     }
 
     override fun print(): CharSequence {
-        return "$zone${latitudeBand.name} ${columnLetter.name}${rowLetter.name} ${currentPiece.print()}"
+        return "${format(zone, "00")}${latitudeBand.name} ${columnLetter.name}${rowLetter.name} ${currentPiece.print()}"
     }
 }
 
@@ -107,7 +110,7 @@ data class MGRSFormatOdd(
     }
 
     override fun print(): CharSequence {
-        return "$zone${latitudeBand.name} ${columnLetter.name}${rowLetter.name} ${currentPiece.print()}"
+        return "${format(zone, "00")}${latitudeBand.name} ${columnLetter.name}${rowLetter.name} ${currentPiece.print()}"
     }
 }
 
@@ -129,7 +132,7 @@ data class MGRSFormatEven<O>(
     }
 
     override fun print(): CharSequence {
-        return "$zone${latitudeBand.name} ${columnLetter.name}${rowLetter.name} ${currentPiece.print()}"
+        return "${format(zone, "00")}${latitudeBand.name} ${columnLetter.name}${rowLetter.name} ${currentPiece.print()}"
     }
 
     override val coordinate: Coordinate
@@ -275,6 +278,15 @@ data class ENPieceDone(
     }
 
     override fun print(): CharSequence {
-        return "$easting $northing"
+        val symbols = DecimalFormatSymbols()
+        symbols.decimalSeparator = '.'
+
+        val decimalFormat = DecimalFormat("00000", symbols)
+        decimalFormat.roundingMode = RoundingMode.DOWN
+
+        val e = decimalFormat.format(easting)
+        val n = decimalFormat.format(northing)
+
+        return "$e $n"
     }
 }

@@ -27,7 +27,7 @@ data class MGRS
         val e = decimalFormat.format(easting)
         val n = decimalFormat.format(northing)
 
-        return "$zone${latitudeBand.name} ${columnLetter.name}${rowLetter.name} $e $n"
+        return "${format(zone, "00")}${latitudeBand.name} ${columnLetter.name}${rowLetter.name} $e $n"
     }
 
     fun toUTM(): UTM {
@@ -140,7 +140,7 @@ enum class RowLetter {
             val lastIdx = latitudeBand.lastRow.ordinal + idxOffset
 
             return (startIdx..lastIdx)
-                    .map { values()[it] }
+                    .map { values()[it % RowLetter.values().size] }
         }
 
         fun fromZoneAndNorthing(zone: Int, northing: Double): RowLetter {
